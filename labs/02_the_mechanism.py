@@ -15,7 +15,8 @@ exactly the rows where the signal strength is empty or the proximity column hold
 readings that were heard, and "ema_masked" reproduces the stated recursion on a
 planted two-phone gap; imputation_bias() equals the mean of fill − truth over the
 filled rows on three planted triples and on the day; and
-fills_are_biased_which_way() returns "too strong".
+fills_are_biased_which_way() names the direction the bias runs, which the
+imputation_bias() above measures.
 Needs: pandas, numpy, plotly, and the loader in lab_support.
 
 Twenty-five minutes.

@@ -11,14 +11,14 @@ slides "Definition — the fitted transform, and applying it" and
 What the check grades: every stored median, mean and standard deviation
 (ddof = 0) equals the training rows' and nothing else's; apply_preprocessing()
 returns the stored column order and moves with a test set moved by 1000, which
-proves it used the stored constants; find_leaks() names both `bus_id` and
-`stationary` on the whole table, names neither a row identifier nor the
-strongest honest feature in it, and still names `stationary` — and no longer
-`bus_id` — once the `bus_id` column is taken away; and keep_or_drop() returns
-the right call on eight candidate features whose right calls are not the same —
-four of them pure, or all but pure, and three of those four dropped and one kept
-— and on eight more where one quantity has been changed, with a reason built out
-of the evidence it was handed.
+proves it used the stored constants; find_leaks() names every column that meets
+the rule on the whole table, names neither a row identifier nor the strongest
+honest feature in it, and is asked again on a frame with one guilty column
+removed, where the answer is whatever the rule measures there; and
+keep_or_drop() returns the right call on eight candidate features whose right
+calls are not the same — four of them pure, or all but pure, and three of those
+four dropped and one kept — and on eight more where one quantity has been
+changed, with a reason built out of the evidence it was handed.
 Needs: pandas, numpy, plotly, scikit-learn (in the demonstration only), and the loader
     in lab_support.
 
