@@ -17,8 +17,8 @@ smoothing weight is three tenths, the standard deviation is the population one
 with the delta degrees of freedom at nought, the leak threshold is ninety-nine
 per cent of the labelled rows. None of those is a fact about the world; each is a
 decision, and a decision that is not written down is one nobody can review. The
-same strings appear on the definition slides, in the stub docstrings and in
-`concepts.json`, and `tools/check_definitions.py` fails the module if they drift.
+same strings appear in the stub docstrings and in `concepts.json`; the
+definition slides state the same choices, sometimes in other words.
 
 **Nothing is imported that hides the lesson.** Lab 4's autocorrelation is
 written out as the Box–Jenkins sum rather than delegated to
