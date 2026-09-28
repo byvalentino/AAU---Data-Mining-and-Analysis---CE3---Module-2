@@ -1,0 +1,191 @@
+{
+ "aiact2024": {
+  "cite": "Regulation (EU) 2024/1689",
+  "text": "Regulation (EU) 2024/1689 of the European Parliament and of the Council laying down harmonised rules on artificial intelligence (Artificial Intelligence Act). Official Journal L, 12.7.2024. https://eur-lex.europa.eu/eli/reg/2024/1689/oj",
+  "file": "Module 2/literature/OJ%3AL_202401689%3AEN%3ATXT.pdf",
+  "located": "Article 10(2)(f) and (g), and 10(5)"
+ },
+ "akidau2015": {
+  "cite": "Akidau et al., 2015",
+  "text": "Akidau, T., Bradshaw, R., Chambers, C. et al. (2015). The dataflow model: a practical approach to balancing correctness, latency, and cost in massive-scale, unbounded, out-of-order data processing. Proceedings of the VLDB Endowment 8(12), 1792–1803. https://doi.org/10.14778/2824032.2824076",
+  "file": "Module 2/literature/p1792-Akidau.pdf (.pdf",
+  "located": "§ 1.2 Windowing: fixed windows, \"sometimes called tumbling windows\", are defined by a static window size"
+ },
+ "bayley1946": {
+  "cite": "Bayley & Hammersley, 1946",
+  "text": "Bayley, G. V. & Hammersley, J. M. (1946). The \"effective\" number of independent observations in an autocorrelated time series. Supplement to the Journal of the Royal Statistical Society 8(2), 184–197. https://doi.org/10.2307/2983560",
+  "file": "Module 4/literature/bayley1946.pdf",
+  "located": "the effective number of observations in an autocorrelated series, §§ 1–10; the first-order factor (1 − ρ)/(1 + ρ) used here is the one Modules 1 and 4 derive from it"
+ },
+ "bergmeir2012": {
+  "cite": "Bergmeir & Benítez, 2012",
+  "text": "Bergmeir, C. & Benítez, J. M. (2012). On the use of cross-validation for time series predictor evaluation. Information Sciences 191, 192–213. https://doi.org/10.1016/j.ins.2011.12.028",
+  "file": "Module 2/literature/1-s2.0-S0020025511006773-main.pdf",
+  "located": "§ 1: last block evaluation, the test set taken from the end of the series, and the dependencies that trouble cross-validation"
+ },
+ "blyth1972": {
+  "cite": "Blyth, 1972",
+  "text": "Blyth, C. R. (1972). On Simpson's paradox and the sure-thing principle. Journal of the American Statistical Association 67(338), 364–366. https://doi.org/10.1080/01621459.1972.10482387",
+  "file": "Module 2/literature/Blyth-SimpsonsParadoxSureThing-1972.pdf",
+  "located": "§ 1, a treatment example called Simpson's paradox; § 2 states the reversal mathematically, P(A|B) < P(A|B') while both conditional comparisons go the other way"
+ },
+ "box2015": {
+  "cite": "Box et al., 2015",
+  "text": "Box, G. E. P., Jenkins, G. M., Reinsel, G. C. & Ljung, G. M. (2015). Time Series Analysis: Forecasting and Control, 5th ed. Wiley. § 2.1.4 is the sample autocorrelation the course grades.",
+  "file": null
+ },
+ "casella2002": {
+  "cite": "Casella & Berger, 2002",
+  "text": "Casella, G. & Berger, R. L. (2002). Statistical Inference, 2nd ed. Duxbury.",
+  "file": "Module 2/literature/Pages from casella_berger_statistical_inference1.pdf",
+  "located": "the extract holds the front matter and contents only: § 5.5 Convergence Concepts, § 5.5.3 Convergence in Distribution (p. 235), the section the deck cites; the theorem's own pages are not in the extract"
+ },
+ "cooley1965": {
+  "cite": "Cooley & Tukey, 1965",
+  "text": "Cooley, J. W. & Tukey, J. W. (1965). An algorithm for the machine calculation of complex Fourier series. Mathematics of Computation.",
+  "file": null
+ },
+ "dabiri2018": {
+  "cite": "Dabiri, 2018",
+  "text": "Dabiri, S. (2018). Credited by the deck (\"Image Credits: S. Dabiri (2018)\") for the figure of the four GPS channels; the deck gives no fuller reference.",
+  "file": null
+ },
+ "elvik2025": {
+  "cite": "Elvik, 2025",
+  "text": "Elvik, R. (2025). Simpson's paradox: a collection of examples from road safety studies and emergency medicine. Transportation Research Interdisciplinary Perspectives 31, 101471. https://doi.org/10.1016/j.trip.2025.101471",
+  "file": "Module 2/literature/1-s2.0-S2590198225001502-main.pdf",
+  "located": "abstract: a reversal of a difference or ratio when data for several groups are added up, illustrated by road-safety studies"
+ },
+ "feller1971": {
+  "cite": "Feller, 1971",
+  "text": "Feller, W. (1971). An Introduction to Probability Theory and Its Applications, vol. 2, 2nd ed. Wiley. Chapter 15 proves the central limit theorem through the Fourier transform (the deck's description).",
+  "file": null
+ },
+ "harris1978": {
+  "cite": "Harris, 1978",
+  "text": "Harris, F. J. (1978). On the use of windows for harmonic analysis with the discrete Fourier transform. Proceedings of the IEEE.",
+  "file": null
+ },
+ "huyen2022": {
+  "cite": "Huyen, 2022",
+  "text": "Huyen, C. (2022). Designing Machine Learning Systems. O'Reilly.",
+  "file": "Module 1/literature/Huyen-2022-Designing-ML-Systems-EarlyRelease.pdf",
+  "located": "early release, ch. 4 Feature Engineering, section \"Data Leakage\": split time-correlated data by time, not at random (Figure 4-7); scaling with global statistics is a common source of leakage"
+ },
+ "kapoor2023": {
+  "cite": "Kapoor & Narayanan, 2023",
+  "text": "Kapoor, S. & Narayanan, A. (2023). Leakage and the reproducibility crisis in machine-learning-based science. Patterns 4(9), 100804. https://doi.org/10.1016/j.patter.2023.100804",
+  "file": "Module 2/literature/1-s2.0-S2666389923001599-main.pdf",
+  "located": "highlights and summary: leakage found in at least 294 papers across 17 fields; a taxonomy of eight types"
+ },
+ "kaufman2012": {
+  "cite": "Kaufman et al., 2012",
+  "text": "Kaufman, S., Rosset, S., Perlich, C. & Stitelman, O. (2012). Leakage in data mining: formulation, detection, and avoidance. ACM Transactions on Knowledge Discovery from Data 6(4), article 15. https://doi.org/10.1145/2382577.2382579",
+  "file": "Module 2/literature/2382577.2382579.pdf",
+  "located": "abstract and § 1: leakage is information about the target that should not be legitimately available to mine from"
+ },
+ "kuhn2019": {
+  "cite": "Kuhn & Johnson, 2019",
+  "text": "Kuhn, M. & Johnson, K. (2019). Feature Engineering and Selection: a Practical Approach for Predictive Models. Chapman and Hall/CRC Press. http://www.feat.engineering/ (encoding and window features, ch. 5; imputation and the fitted transform, ch. 8, as the deck cites them).",
+  "file": null
+ },
+ "little2019": {
+  "cite": "Little & Rubin, 2019",
+  "text": "Little, R. J. A. & Rubin, D. B. (2019). Statistical Analysis with Missing Data, 3rd ed. Wiley. https://doi.org/10.1002/9781119482260",
+  "file": "Module 2/literature/little2019.pdf",
+  "located": "§ 4.2.1 Unconditional mean imputation: under MCAR the filled-in variance underestimates the true variance by the factor (n_obs − 1)/(n − 1)"
+ },
+ "mckinney2022": {
+  "cite": "McKinney, 2022",
+  "text": "McKinney, W. (2022). Python for Data Analysis, 3rd ed. O'Reilly. https://wesmckinney.com/book/",
+  "file": "Module 2/literature/McKinney-2022-Python-for-Data-Analysis.pdf",
+  "located": "§ 7.2 \"Computing Indicator/Dummy Variables\" (pandas.get_dummies); § 8.2 \"Combining and Merging Datasets\"; ch. 11, time series. pandas.merge_asof, which the labs' nearest match uses, is not in the book's text"
+ },
+ "micci2001": {
+  "cite": "Micci-Barreca, 2001",
+  "text": "Micci-Barreca, D. (2001). A preprocessing scheme for high-cardinality categorical attributes in classification and prediction problems. SIGKDD Explorations 3(1), 27–32. https://doi.org/10.1145/507533.507538",
+  "file": "Module 2/literature/507533.507538.pdf",
+  "located": "abstract: each value of a high-cardinality attribute is mapped to an estimate of the target, by an empirical-Bayes method"
+ },
+ "nielsen2019": {
+  "cite": "Nielsen, 2019",
+  "text": "Nielsen, A. (2019). Practical Time Series Analysis. O'Reilly.",
+  "file": null
+ },
+ "omnibus2026": {
+  "cite": "Regulation (EU) 2026/1744",
+  "text": "Regulation (EU) 2026/1744 (the Digital Omnibus on artificial intelligence), amending Regulation (EU) 2024/1689. Official Journal of the European Union.",
+  "file": "Module 2/literature/OJ%3AL_202601744%3AEN%3ATXT.pdf",
+  "located": "sets 2 December 2027 for AI systems classified as high-risk under Article 6(2) and Annex III"
+ },
+ "oppenheim2010": {
+  "cite": "Oppenheim & Schafer, 2010",
+  "text": "Oppenheim, A. V. & Schafer, R. W. (2010). Discrete-Time Signal Processing, 3rd ed. Pearson. The discrete Fourier transform is chapter 8 (the deck's description).",
+  "file": null
+ },
+ "pearl2014": {
+  "cite": "Pearl, 2014",
+  "text": "Pearl, J. (2014). Comment: understanding Simpson's paradox. The American Statistician 68(1), 8–13. https://doi.org/10.1080/00031305.2014.876829",
+  "file": "Module 2/literature/Pearl-CommentUnderstandingSimpsons-2014.pdf",
+  "located": "opening sections: why causal, rather than statistical, considerations decide which comparison to trust"
+ },
+ "roberts2017": {
+  "cite": "Roberts et al., 2017",
+  "text": "Roberts, D. R., Bahn, V., Ciuti, S. et al. (2017). Cross-validation strategies for data with temporal, spatial, hierarchical, or phylogenetic structure. Ecography 40(8), 913–929. https://doi.org/10.1111/ecog.02881",
+  "file": "Module 2/literature/Ecography - 2016 - Roberts - Cross%E2%80%90validation strategies for data with temporal  spatial  hierarchical  or phylogenetic.pdf",
+  "located": "abstract: block cross-validation is nearly universally more appropriate than random cross-validation for structured data"
+ },
+ "rubin1976": {
+  "cite": "Rubin, 1976",
+  "text": "Rubin, D. B. (1976). Inference and missing data. Biometrika 63(3), 581–592. https://doi.org/10.1093/biomet/63.3.581",
+  "file": "Module 2/literature/Rubin-InferenceMissingData-1976.pdf",
+  "located": "Definitions 1 and 2: missing at random, and observed at random"
+ },
+ "rubin1987": {
+  "cite": "Rubin, 1987",
+  "text": "Rubin, D. B. (1987). Multiple Imputation for Nonresponse in Surveys. Wiley.",
+  "file": null
+ },
+ "servizi2023": {
+  "cite": "Servizi et al., 2023",
+  "text": "Servizi, V., Persson, D. R., Pereira, F. C., Villadsen, H., Bækgaard, P., Peled, I. & Nielsen, O. A. (2023). \"Is Not the Truth the Truth?\": analyzing the impact of user validations for bus in/out detection in smartphone-based surveys. IEEE Transactions on Intelligent Transportation Systems 24(11), 11905–11920. https://doi.org/10.1109/TITS.2023.3291493",
+  "file": "Module 2/literature/Is_Not_the_Truth_the_Truth_Analyzing_the_Impact_of_User_Validations_for_Bus_In_Out_Detection_in_Smartphone-Based_Surveys.pdf",
+  "located": "Appendix B, Imputation: BLE gaps filled with an exponentially weighted moving average, and the classifier informed where the imputation could not fill them"
+ },
+ "servizi2026": {
+  "cite": "Servizi et al., 2026",
+  "text": "Servizi, V., Persson, D. R., Pereira, F. C., Villadsen, H., Bækgaard, P., Rich, J. & Nielsen, O. A. (2026). Scalable passenger detection using smartphone–bus implicit interactions. IEEE Intelligent Transportation Systems Magazine 18(1), 65–78. https://doi.org/10.1109/MITS.2025.3611306",
+  "file": "Module 2/literature/Scalable_Passenger_Detection_Using_SmartphoneBus_Implicit_Interactions.pdf",
+  "located": "Table 1, \"Observation imputation\": imputation with an exponential weighted moving average, and masking"
+ },
+ "shannon1949": {
+  "cite": "Shannon, 1949",
+  "text": "Shannon, C. E. (1949). Communication in the presence of noise. Proceedings of the IRE 37(1), 10–21.",
+  "file": "Module 2/literature/Shannon1949.pdf",
+  "located": "Theorem 1: a function containing no frequencies higher than W cycles per second is completely determined by its ordinates at points spaced 1/(2W) seconds apart"
+ },
+ "simpson1951": {
+  "cite": "Simpson, 1951",
+  "text": "Simpson, E. H. (1951). The interpretation of interaction in contingency tables. Journal of the Royal Statistical Society, Series B 13(2), 238–241. https://doi.org/10.1111/j.2517-6161.1951.tb00088.x",
+  "file": "Module 2/literature/Simpson-InterpretationInteractionContingency-1951.pdf",
+  "located": "pp. 238–241: an association present in every subtable absent from the combined table (the reversal itself is Blyth's example); no combination of the tables preserves the association"
+ },
+ "vanbuuren2018": {
+  "cite": "van Buuren, 2018",
+  "text": "van Buuren, S. (2018). Flexible Imputation of Missing Data, 2nd ed. Chapman and Hall/CRC Press. https://doi.org/10.1201/9780429492259",
+  "file": "Module 2/literature/9780429492259_previewpdf.pdf",
+  "located": "the publisher's preview: § 1.2 MCAR, MAR and MNAR; § 1.3.3 mean imputation \"will underestimate the variance\"; § 1.3.6 LOCF; § 1.3.7 the indicator method; R, the 0–1 response indicator"
+ },
+ "wang1996": {
+  "cite": "Wang & Strong, 1996",
+  "text": "Wang, R. Y. & Strong, D. M. (1996). Beyond accuracy: what data quality means to data consumers. Journal of Management Information Systems 12(4), 5–33. https://doi.org/10.1080/07421222.1996.11518099",
+  "file": "Module 2/literature/wang1996.pdf",
+  "located": "the framework's four categories: completeness is a dimension of contextual data quality"
+ },
+ "wasserman2004": {
+  "cite": "Wasserman, 2004",
+  "text": "Wasserman, L. (2004). All of Statistics. Springer.",
+  "file": "Module 4/literature/Wasserman-2004-All-of-Statistics.pdf",
+  "located": "§ 5.4 The Central Limit Theorem"
+ }
+}

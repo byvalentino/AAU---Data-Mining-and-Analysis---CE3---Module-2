@@ -1,697 +1,856 @@
 #!/usr/bin/env python3
-"""Build Module 2's demonstration notebook, then execute it against the archive.
+"""Build Module 2's demonstration notebook, and execute it.
 
-    python "Module 2/notebook/build_notebook.py"            # build and run
-    python "Module 2/notebook/build_notebook.py" --no-run   # build only
+    python "Module 2/notebook/build_notebook.py"            build and run
+    python "Module 2/notebook/build_notebook.py" --no-run   build only
 
-Run it from the repository root. The cells address the archive as
-`data/bus.csv` and `data/passengers.csv`, so that is the working directory the
-notebook is executed in.
+Rewritten 28 September 2026, to the specification Module 4's notebook was rebuilt
+to. The notebook follows the deck, `slides/Module2.pptx`, block by block, and
+holds itself to three things:
 
-Exit codes:
-    0  the notebook was written, executed if the archive was there
-    2  the archive is not on this machine, so nothing was executed and nothing
-       was written. That is a different fact from a broken notebook and it is
-       reported as one.
+  every image on a shown slide is drawn here by Python -- on the lab data where
+      the slide shows data, from the same simulation or closed form where it
+      shows one, and labelled "illustrative" where the slide's values were
+      constructed and the lab data cannot stand in; photographs, logos,
+      generated posters and copyrighted drawings are excluded with a reason
+      (notebook/figure_map.json);
+  every lab exercise is stated as its stub states it, and its solution runs with
+      every function's code visible -- copied verbatim from exercises/solutions/,
+      exercises/lab_support.py, exercises/_narrate.py and exercises/data/, and
+      checked against those files by tools/check_notebook_sources.py;
+  every number the slides print is recomputed, and agrees() stops the run if
+      the deck and the code disagree. A number only the instructor's archive can
+      produce is computed on the lab data and printed beside the recorded archive
+      value (slides/measured.json, Module 1's measured.json), labelled "archive".
 
-This notebook opens `data/passengers.csv`, which is the position trace of
-sixteen identifiable volunteers. Under Article 4 of the General Data Protection
-Regulation that is personal data.
+Data: only what the labs are given -- `exercises/data/bus_slice.csv.gz` (shuttle
+VJRD1A10224000055, 22 and 23 January 2020, 48,290 readings, no personal data)
+and the phone traces `exercises/data/prepare.py` generates from `make_phones.py`
+and `calibration.json`. The archive files data/bus.csv and data/passengers.csv
+are never opened. The notebook copies exercises/ to a temporary folder first and
+works there, so running it never writes into the student's folder.
 
-The rule this notebook obeys, and states, is that **only aggregates leave a
-cell**: counts, shares, cross-tabulated totals, distributions. No row is
-printed. No identifier is printed. No coordinate is printed. No map is drawn.
-Check 4 reads the executed output and refuses the notebook if any cell breaks it.
-
-It is instructor-side and does not go into the repository students clone.
+Executed from `Module 2/notebook`; it finds `../exercises` itself. Needs the lab
+requirements plus notebook/requirements.txt.
 """
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
-import nbformat
-from nbformat.v4 import new_code_cell, new_markdown_cell, new_notebook
-
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
+sys.path.insert(0, str(ROOT / "tools"))
+sys.path.insert(0, str(HERE))
+
+from notebook_kit import Notebook, execute  # noqa: E402
+
 OUTPUT = HERE / "Module2_demonstration.ipynb"
-
-MARKDOWN, CODE = "markdown", "code"
-
-# The definition cards are not written here. They are read from the manifest the
-# slide and the stub also read (standing rule 7), so the projector, the notebook,
-# the exercise and the check cannot drift apart: change the formula in one place
-# and check 3e fails everywhere it was not changed.
-CONCEPTS = {concept["id"]: concept for concept in json.loads(
-    (ROOT / "Module 2" / "exercises" / "concepts.json").read_text())["concepts"]}
-
-
-def card(concept_id: str, why: str) -> str:
-    """One definition card: the statement, the formula, the source, then why here."""
-    concept = CONCEPTS[concept_id]
-    return (f"> **Definition — {concept['name']}**\n>\n"
-            f"> `{concept['formula']}`\n>\n"
-            f"> Source: {concept['citation']}. {why}")
-
-CELLS = [
-(MARKDOWN, """# Module 2 — Cleaning data and building features
-
-**Data Mining and Analysis (course code CE3) · Aalborg University, Copenhagen**
-
-This notebook demonstrates the four blocks on the real archive: two automated
-shuttles and sixteen instrumented phones, Copenhagen, 22–23 January 2020.
-
-> **Personal data.** `data/passengers.csv` holds the position traces of sixteen
-> identifiable people. Every cell below emits counts, shares or distributions
-> and nothing else — no row, no identifier, no coordinate, no map. That is not a
-> convention; it is the condition under which this file may be opened at all,
-> and the module's check enforces it.
->
-> The exercise repository students clone contains neither this notebook nor the
-> file it reads. Their labs run on generated phone traces whose parameters were
-> measured here."""),
-
-(MARKDOWN, """## Hook
-
-Two files. One reports every half second, the other every second. One is vehicle
-telemetry that identifies nobody; the other is the movement of sixteen people.
-Roughly three quarters of the interesting columns are empty, and one column
-already knows the answer.
-
-Turn that into a table a model can train on — and be able to say, afterwards,
-exactly what you did to it."""),
-
-(CODE, '''import json
-import warnings
-from pathlib import Path
-
-import numpy as np
-import pandas as pd
-import plotly.graph_objects as go
-
-warnings.filterwarnings("ignore", category=FutureWarning)
-pd.set_option("display.width", 110)
-
-# Every figure in this course is plotly, drawn on the light template with the
-# course's four colours: reference blue, current orange, neutral grey, and red
-# only for what fails.
-BLUE, ORANGE, GREY, RED = "#2A78D6", "#E07B39", "#52514E", "#C0392B"
-FIGURES = Path("Module 2/notebook/figures")
-FIGURES.mkdir(parents=True, exist_ok=True)
-
-
-def show(fig, name):
-    # Inline for the reader, and a portable network graphics copy beside the
-    # notebook so a figure can be lifted into a message without re-running.
-    fig.update_layout(template="plotly_white", width=1000, height=520,
-                      margin=dict(l=70, r=30, t=70, b=70))
-    fig.write_image(str(FIGURES / f"{name}.png"), scale=2)
-    fig.show()
-
-# The course's seed, the date of the first day in the archive. Every notebook,
-# lab and generator in Edition 2026 uses this one number, so that two people who
-# run the same cell get the same answer. No cell below draws a random number --
-# every result here is an exact aggregate of the whole file -- but the seed is
-# set and used, so that anything added later is reproducible by construction
-# rather than by luck.
-SEED = 20200122
-RNG = np.random.default_rng(SEED)
-np.random.seed(SEED)
-
-BUS = Path("data/bus.csv")
-PHONES = Path("data/passengers.csv")
-
-# Two facts this notebook quotes from Module 1, read from Module 1's own
-# measured.json rather than typed here. Same rule as the slides: a number
-# reaches a reader by having been measured, once, in the module that measured it.
-MODULE_1 = json.loads(Path("Module 1/slides/measured.json").read_text())
-ROUTE_EXTENT_M = MODULE_1["extent_m"]["value"]
-
-bus = pd.read_csv(BUS, low_memory=False)
-phones = pd.read_csv(PHONES, low_memory=False)
-
-# Aggregates only, from here to the end.
-print(f"vehicle telemetry : {len(bus):,} rows x {bus.shape[1]} columns")
-print(f"phone traces      : {len(phones):,} rows x {phones.shape[1]} columns")
-print(f"volunteers        : {phones['id'].nunique()}")'''),
-
-(MARKDOWN, """## Core Concept
-
-### The alignment problem is a decision, not a join
-
-Two sources sampled at different rates share no instants at all. You choose a
-grain, and you decide what happens to whatever does not fit. Both choices change
-every number computed downstream, so both are recorded."""),
-
-(CODE, '''bus_time = pd.to_datetime(bus["utc_time"], utc=True)
-# format="mixed" matters here: some rows carry fractional seconds and some do
-# not. Left to infer one format, pandas rejects six rows. "Six unparseable
-# timestamps" is a property of how the file was read, not of the file.
-phone_time = pd.to_datetime(phones["timestamp_utc"], utc=True,
-                            errors="coerce", format="mixed")
-one_format = pd.to_datetime(phones["timestamp_utc"], utc=True, errors="coerce")
-
-VEHICLE = "VJRD1A10224000055"          # the shuttle that ran on both days
-same_bus = bus[bus["vehicle_id"] == VEHICLE].assign(_t=bus_time).sort_values("_t")
-bus_step = same_bus.groupby(same_bus["_t"].dt.date)["_t"].diff().dt.total_seconds()
-
-ordered = phones.assign(_t=phone_time).dropna(subset=["_t"]).sort_values("_t")
-phone_step = ordered.groupby([ordered["_t"].dt.date, "id"])["_t"].diff().dt.total_seconds()
-
-print(f"vehicle: a reading every {bus_step.median():.3f} s (median)")
-print(f"phones : a reading every {phone_step.median():.3f} s (median)")
-print(f"\\nwill not parse, reader told the formats are mixed: {int(phone_time.isna().sum())}")
-print(f"will not parse, reader left to infer one format:  {int(one_format.isna().sum())}")
-print(f"  ...of those, labelled: {int(phones.loc[one_format.isna(), 'label'].notna().sum())}")'''),
-
-(MARKDOWN, card("tumbling_window",
-                "Below, the grain is applied to the archive's own two files.")),
-
-(MARKDOWN, card("conservation_ledger",
-                "The ledger under it is the whole of Lab 1: rows used plus rows "
-                "dropped equals rows received, and every dropped row has a reason.")),
-
-(MARKDOWN, card("upstream_profile",
-                "P is data/module1_profile.json, schema aau-ce3/data-profile/1 — "
-                "byte for byte what Module 1's own declare_profile() wrote about "
-                "this slice. Run it over the whole slice and it is silent; run it "
-                "over 22 January alone and one column breaks the absence it was "
-                "allowed. The pooled frame satisfies a rule its own first day does "
-                "not, which is the paradox further down this notebook wearing a "
-                "validation layer's clothes.")),
-
-(CODE, '''# One grain, and books that balance. The vehicle reading is thinned to one
-# every thirty seconds first, so that there is something real to drop: against
-# the shipped rate every phone row lands and a ledger of noughts balances too.
-GRAIN = "5s"
-sparse_bus = same_bus.iloc[::60]
-
-phone_windows = ordered.assign(window=ordered["_t"].dt.floor(GRAIN))
-bus_windows = set(sparse_bus["_t"].dt.floor(GRAIN))
-
-received = int(len(phones))
-unparseable = int(phone_time.isna().sum())
-placed = phone_windows["window"].isin(bus_windows)
-used = int(placed.sum())
-dropped = received - used
-
-ledger = {
-    "grain_seconds": 5,
-    "phone_rows_in": received,
-    "phone_rows_used": used,
-    "phone_rows_dropped": dropped,
-    "drop_reasons": {"timestamp would not parse": unparseable,
-                     "no vehicle reading in the window": dropped - unparseable},
-}
-for key, value in ledger.items():
-    print(f"{key:26} {value}")
-print("\\nused + dropped == received:",
-      ledger["phone_rows_used"] + ledger["phone_rows_dropped"] == ledger["phone_rows_in"])
-print("reasons sum to dropped:",
-      sum(ledger["drop_reasons"].values()) == ledger["phone_rows_dropped"])'''),
-
-(MARKDOWN, """Read one way, six rows are unusable. Read another, none are. The file did not
-change; the reader's assumption did.
-
-That is standing rule 2 in one line: a number that depends on a choice must have
-the choice printed beside it. An earlier draft of this course reported "six
-unparseable timestamps" as a property of the archive. It never was.
-
-And it matters, because some of those rows carry hand-recorded labels — truth
-that cannot be recovered if you drop them quietly. Which is why Lab 1 insists
-every dropped row is counted and given a reason.
-
-### The clock that lies, in this file too"""),
-
-(CODE, '''local_column = pd.to_datetime(phones["timestamp"], errors="coerce")
-offset = (local_column.dt.tz_localize("UTC") - phone_time).dt.total_seconds() / 3600
-print("the column named `timestamp`, minus `timestamp_utc`, in hours:",
-      sorted(offset.dropna().unique()))
-print("\\nJoin on the friendly name and the two sources sit an hour apart,")
-print("while every value still parses and every timestamp still looks like one.")'''),
-
-(MARKDOWN, """## Worked Example
-
-### Missingness is a mechanism — and it is written down twice"""),
-
-(MARKDOWN, card("missing_mechanism",
-                "M is the indicator that a reading is absent. Here the absence "
-                "depends on the missing value itself, which is the third case.")),
-
-(MARKDOWN, card("absence_mask",
-                "The rule is measured from this archive: both encodings mark the "
-                "same rows, and the next cell checks that on every beacon.")),
-
-(CODE, '''BEACONS = ["rssiA", "rssiB", "rssiC", "rssi1", "rssi2"]
-PROX = {"rssiA": "proxA", "rssiB": "proxB", "rssiC": "proxC",
-        "rssi1": "prox1", "rssi2": "prox2"}
-
-print(f"{'beacon':8} {'no reading':>11} {'proximity = -1':>15} {'same rows?':>11}")
-for beacon in BEACONS:
-    absent = phones[beacon].isna()
-    sentinel = phones[PROX[beacon]] == -1
-    print(f"{beacon:8} {absent.mean()*100:10.1f}% {sentinel.mean()*100:14.1f}% "
-          f"{str(bool((absent == sentinel).all())):>11}")
-
-print("\\nproxA values and their counts:",
-      phones["proxA"].value_counts().sort_index().to_dict())
-print("-1 is a hole with a number in it. Take a mean over this column without")
-print("recognising that, and you average in minus one as a proximity band.")'''),
-
-(MARKDOWN, """The same absence, encoded two different ways, agreeing on every row for every
-beacon. A mask that recognises only the empty cells silently accepts the −1 as a
-measurement.
-
-Why is the reading absent? Signal strength falls with distance, so the absent
-readings are the far ones. That is missing-not-at-random: the absence is a
-measurement of distance in disguise.
-
-Which suggests an excellent feature — and the next cell tests it, because a
-sound mechanism does not guarantee a useful feature."""),
-
-(CODE, '''# The tempting inference: absence means distance, so hearing the VEHICLE beacon
-# should mean being on the vehicle. Test it before building on it.
-labelled = phones[phones["label2"].notna()]
-aboard = labelled["label2"] == "IN"
-base_rate = aboard.mean()
-
-print(f"labelled rows: {len(labelled):,}   aboard: {base_rate*100:.1f}%")
-print(f"\\n{'beacon':8} {'heard|aboard':>13} {'heard|not':>11} {'agrees with aboard':>20}")
-for beacon in BEACONS:
-    heard = labelled[beacon].notna()
-    print(f"{beacon:8} {heard[aboard].mean()*100:12.1f}% {heard[~aboard].mean()*100:10.1f}%"
-          f" {(heard == aboard).mean()*100:19.1f}%")
-
-print(f"\\nAnswering \'aboard\' every time scores {base_rate*100:.1f}%.")
-print("Every beacon does worse. The vehicle beacon rssi1 is heard MORE often")
-print("when the passenger is not aboard than when they are.")
-print(f"\\nModule 1 measured why: the whole route fits in a box about "
-      f"{ROUTE_EXTENT_M[0]} by {ROUTE_EXTENT_M[1]}")
-print("metres, and beacon range is tens of metres. In a space that small,")
-print("\'near a stop beacon\' and \'on the vehicle\' are not separable.")
-print("\\nThe mechanism is real. The feature is not. Measure before you believe.")'''),
-
-(CODE, '''shares = {beacon: phones[beacon].isna().mean() * 100 for beacon in BEACONS}
-fig = go.Figure(go.Bar(x=list(shares), y=list(shares.values()), marker_color=BLUE,
-                       text=[f"{v:.1f}" for v in shares.values()],
-                       textposition="outside", showlegend=False))
-fig.update_yaxes(title_text="rows with no reading (per cent)", range=[0, 100])
-fig.update_xaxes(title_text="beacon (received signal strength column)")
-fig.update_layout(title="A beacon reading is absent more often than present")
-show(fig, "beacon_absence")'''),
-
-(MARKDOWN, """### Filling the gaps, and measuring what the fill invented
-
-The archive cannot answer this one. To measure a fill you need the value that
-was never recorded, and only the course's generator has it — calibrated from
-this file, with none of its people. The functions below are the ones Lab 2 is
-graded against, imported rather than retyped."""),
-
-(MARKDOWN, card("masked_ema",
-                "One series per phone, so a gap is filled from that volunteer's "
-                "own last heard readings.")),
-
-(MARKDOWN, card("imputation_bias",
-                "Positive is too strong: the fill puts the phone nearer the "
-                "beacon than it was.")),
-
-(CODE, '''EXERCISES = Path("Module 2/exercises")
-for folder in (EXERCISES, EXERCISES / "data", EXERCISES / "solutions"):
-    if str(folder.resolve()) not in sys.path:
-        sys.path.insert(0, str(folder.resolve()))
-
-from lab_support import load_phones                  # noqa: E402
-from lab_02 import impute_with_mask, imputation_bias  # noqa: E402
-
-generated = load_phones(day="2020-01-22")
-truth = load_phones(day="2020-01-22", with_truth=True)
-
-biases, filled = {}, {}
-for method in ("drop", "mean", "ema_masked"):
-    filled[method] = impute_with_mask(generated, method)
-    biases[method] = imputation_bias(filled[method]["rssi1_filled"],
-                                     truth["rssi1_true"],
-                                     filled[method]["rssi1_missing"])
-    print(f"{method:11} bias = mean(fill - truth) on the filled rows: "
-          f"{biases[method]:+.1f} decibels")
-print("\\nGenerated, seed 20200122. The magnitudes are the archive's; the people")
-print("are not. No imputation recovers what was never recorded.")'''),
-
-(CODE, '''one = truth["phone_id"] == truth["phone_id"].iloc[0]
-absent = generated["rssi1"].isna() | (generated["prox1"] == -1)
-distance = truth.loc[one, "rssi1_distance_true"]
-heard = ~absent[one]
-
-fig = go.Figure()
-fig.add_scatter(x=distance[heard], y=truth.loc[one & heard, "rssi1"], mode="markers",
-                name="heard, and recorded", marker=dict(color=BLUE, size=6))
-fig.add_scatter(x=distance[~heard], y=truth.loc[one & ~heard, "rssi1_true"],
-                mode="markers", name="not heard: the hidden truth",
-                marker=dict(color=GREY, size=4, opacity=0.5))
-fig.add_scatter(x=distance[~heard],
-                y=filled["ema_masked"].loc[one & ~heard, "rssi1_filled"], mode="markers",
-                name="masked moving average, carried forward",
-                marker=dict(color=ORANGE, size=6, symbol="diamond"))
-mean_of_heard = float(generated["rssi1"].where(~absent).mean())
-fig.add_hline(y=mean_of_heard, line_color=RED, line_width=2,
-              annotation_text="mean of the heard readings")
-fig.update_xaxes(title_text="true distance to the beacon (metres)")
-fig.update_yaxes(title_text="signal strength (decibel-milliwatts)")
-fig.update_layout(title="Every fill is made of near readings and stands in for far ones",
-                  legend=dict(orientation="h", y=-0.22))
-show(fig, "imputation_by_distance")'''),
-
-(MARKDOWN, """### The leak
-
-`BusID` looks like a sparse identifier. Cross-tabulate it against the label."""),
-
-(MARKDOWN, card("target_leakage",
-                "n(v, y) counts the labelled rows where the column holds v and "
-                "the target holds y. Both directions count.")),
-
-(MARKDOWN, card("feature_verdict",
-                "Finding a suspect is not deciding what to do about it. Note what "
-                "the ceiling in the rule above is doing here: four candidate "
-                "columns in this module's own fixture set are pure, or all but "
-                "pure, and three of them are dropped while the fourth — a window "
-                "mean spread over more than a thousand distinct values — is "
-                "kept.")),
-
-(CODE, '''leak = pd.crosstab(phones["BusID"].notna(), phones["label2"])
-leak.index = ["BusID absent", "BusID present"]
-print(leak.to_string())
-
-empty = phones["BusID"].isna().mean() * 100
-print(f"\\nBusID is empty on {empty:.2f}% of rows -- it looks harmless.")
-print("But there are two zeros in that table. Every row aboard carries it;")
-print("no row not aboard does. It is not a clue about the target.")
-print("It is the target, recorded under a different name.")'''),
-
-(CODE, '''cells = leak.reindex(index=["BusID present", "BusID absent"],
-                    columns=["IN", "OUT"]).fillna(0).astype(int)
-fig = go.Figure(go.Heatmap(z=cells.to_numpy(), x=["aboard", "not aboard"],
-                           y=list(cells.index),
-                           text=[[f"{v:,}" for v in row] for row in cells.to_numpy()],
-                           texttemplate="%{text}", textfont=dict(size=24),
-                           colorscale=[[0, "#FCFCFB"], [1, BLUE]], showscale=False))
-fig.update_yaxes(autorange="reversed", title_text="")
-fig.update_xaxes(title_text="hand-recorded label (rows)")
-fig.update_layout(title="BusID is not a clue about the target. It is the target.")
-show(fig, "leak")'''),
-
-(MARKDOWN, """### What the join costs
-
-Widening the tolerance always buys matches and always spends accuracy — the
-vehicle reading you attached is further from the moment you are describing."""),
-
-(MARKDOWN, card("tolerance_join",
-                "t_p is a phone row's time and t_b a vehicle reading's, both in "
-                "coordinated universal time; tau is the tolerance in seconds.")),
-
-(CODE, '''left = labelled.assign(_t=pd.to_datetime(labelled["timestamp_utc"], utc=True, format="mixed"))
-left = left.dropna(subset=["_t"]).sort_values("_t")[["_t"]]
-left["_t"] = left["_t"].astype("datetime64[ns, UTC]")
-
-right = same_bus[["_t", "speed"]].copy()
-right["_t"] = right["_t"].astype("datetime64[ns, UTC]")
-
-print(f"{'tolerance':>10}  {'matched':>8}")
-TOLERANCES = (1, 2, 5, 10, 30)
-matched = {}
-for seconds in TOLERANCES:
-    merged = pd.merge_asof(left, right, on="_t", direction="nearest",
-                           tolerance=pd.Timedelta(seconds=seconds))
-    matched[seconds] = merged["speed"].notna().mean() * 100
-    print(f"{seconds:>8} s  {matched[seconds]:7.1f}%")
-
-# Subtracted, not asserted. An earlier draft of this course said "about four
-# percentage points" here and on the slide beside it; the measurement says less.
-gain = matched[TOLERANCES[-1]] - matched[TOLERANCES[0]]
-multiple = TOLERANCES[-1] // TOLERANCES[0]
-print(f"\\n{multiple} times the tolerance buys {gain:.1f} percentage points,")
-print("and spends accuracy on every row it matched. Measure the trade.")'''),
-
-(CODE, '''fig = go.Figure(go.Scatter(x=list(TOLERANCES), y=[matched[t] for t in TOLERANCES],
-                           mode="lines+markers+text", line=dict(color=BLUE),
-                           marker=dict(size=10), showlegend=False,
-                           text=[f"{matched[t]:.1f}" for t in TOLERANCES],
-                           textposition="top center"))
-fig.update_xaxes(type="log", tickvals=list(TOLERANCES),
-                 ticktext=[str(t) for t in TOLERANCES],
-                 title_text="how far in time a match may reach (seconds)")
-fig.update_yaxes(title_text="labelled phone rows matched (per cent)",
-                 range=[min(matched.values()) - 1.5, 100])
-fig.update_layout(title=f"{multiple} times the tolerance buys {gain:.1f} percentage points")
-show(fig, "join_cost")'''),
-
-(MARKDOWN, """### Features from a window, and a split that keeps time
-
-Block four on the vehicle telemetry, which identifies nobody. The estimators are
-the ones Lab 4 is graded against, imported rather than retyped, so that the
-number in this notebook and the number in a student's terminal are the same
-quantity."""),
-
-(MARKDOWN, card("window_features",
-                "The window here is the last sixty vehicle speed readings, which "
-                "is thirty seconds at this reporting rate.")),
-
-(MARKDOWN, card("autocorrelation",
-                "This is the estimator Module 1 standardised on; pandas' own "
-                "Series.autocorr computes a different one.")),
-
-(MARKDOWN, card("split_by_time",
-                "The cut is on utc_time, and the last training instant is at or "
-                "before the first test instant.")),
-
-(CODE, '''from lab_04 import sample_autocorrelation, split_by_time, window_features  # noqa: E402
-
-speed = same_bus["speed"].astype(float).reset_index(drop=True)
-features = window_features(speed, 60)
-for name, value in features.items():
-    print(f"{name:19} {value: .5f}")
-print(f"\\npandas Series.autocorr(1) on the same window: "
-      f"{float(speed.tail(60).autocorr(1)): .5f} -- a different estimator")
-
-whole_day = same_bus.assign(timestamp_utc=same_bus["_t"])
-train, test = split_by_time(whole_day, 0.7)
-print(f"\\ntrain {len(train):,} rows ending {train['timestamp_utc'].max()}")
-print(f"test  {len(test):,} rows starting {test['timestamp_utc'].min()}")
-print("no overlap:", bool(train["timestamp_utc"].max() <= test["timestamp_utc"].min()))'''),
-
-(MARKDOWN, card("fitted_transform",
-                "Fitted on the training rows above and on nothing else.")),
-
-(MARKDOWN, card("applied_transform",
-                "Applied to the test rows with the stored constants, which is "
-                "what makes a service reproduce the training pipeline exactly.")),
-
-(CODE, '''from lab_03 import apply_preprocessing, fit_preprocessing  # noqa: E402
-
-numeric = [column for column in ("speed", "payload") if column in train.columns]
-fitted = fit_preprocessing(train[numeric])
-print("stored constants, from the training rows only:")
-for key in ("medians", "means", "stds"):
-    print(f"  {key:8} " + ", ".join(f"{c} {fitted[key][c]:.4f}" for c in fitted["columns"]))
-
-applied = apply_preprocessing(test[numeric], fitted)
-moved = test[numeric] + 1000
-print(f"\\ntest set moved by 1000 and re-applied with the STORED constants: "
-      f"speed moved by {float((apply_preprocessing(moved, fitted)['speed'] - applied['speed']).mean()):.1f}")
-print("Nothing was recomputed from the frame in hand. That is the whole of Lab 3.")'''),
-
-(MARKDOWN, """### Two days, two fleets — the comparison that reverses
-
-The archive's two days are not the same fleet: two shuttles ran on 22 January
-and one on 23 January. The generated phones plant the same composition change on
-purpose, so that the reversal can be measured rather than described."""),
-
-(MARKDOWN, card("simpson_paradox",
-                "Y is aboard, D is the day, G is the shuttle ridden.")),
-
-(CODE, '''from lab_01 import pooled_versus_by_group  # noqa: E402
-from lab_support import load_simpson                # noqa: E402
-
-both_days = load_simpson()
-verdict = pooled_versus_by_group(both_days, "aboard", "bus", "day")
-shares = pd.DataFrame(verdict["shares"]).T.mul(100).round(1)
-print(shares.to_string())
-print(f"\\npooled, later day minus earlier: {verdict['pooled'] * 100:+.1f} points")
-print("per shuttle: " + ", ".join(f"{g} {d * 100:+.1f}"
-                                 for g, d in verdict["by_group"].items()))
-print(f"every group moves against the pool: {verdict['reversal']}, "
-      f"which is called {verdict['name']}")
-
-groups = [g for g in verdict["shares"] if g != "pooled"] + ["pooled"]
-fig = go.Figure()
-for day, colour in zip(verdict["days"], (BLUE, ORANGE)):
-    fig.add_bar(name=day, x=groups, marker_color=colour,
-                y=[verdict["shares"][g][day] * 100 for g in groups],
-                text=[f"{verdict['shares'][g][day] * 100:.1f}" for g in groups],
-                textposition="outside")
-fig.update_layout(barmode="group",
-                  title="Up on each shuttle, down when pooled - Simpson's paradox")
-fig.update_yaxes(title_text="aboard share (per cent of readings)", range=[0, 100])
-fig.update_xaxes(title_text="shuttle ridden (generated phones, both days)")
-show(fig, "simpson")'''),
-
-(MARKDOWN, """### The number that shapes the rest of the course"""),
-
-(CODE, '''by_day = phones.assign(_d=phone_time.dt.date)
-coverage = by_day.groupby("_d").agg(
-    rows=("label", "size"),
-    labelled=("label", lambda s: int(s.notna().sum())),
-    phones=("id", "nunique"),
-)
-coverage["label coverage %"] = (coverage["labelled"] / coverage["rows"] * 100).round(1)
-print(coverage.to_string())
-print("\\nOne day of hand-recorded truth, and then none.")
-print("From day two accuracy cannot be computed, only bought. Module 5 lives there.")'''),
-
-(MARKDOWN, """## Practice
-
-Three questions, each a few lines, each with a definite answer.
-
-1. **Can any beacon beat the base rate?** We saw that "heard" does not. Try the
-   *value*: among rows where the beacon was heard, does signal strength separate
-   aboard from not aboard? Compare the means, and say whether the difference is
-   large enough to build on.
-2. **How much does the grain cost?** Count how many distinct 1-second,
-   5-second and 30-second windows the labelled rows fall into. What is being
-   thrown away at each step?
-3. **Is `label` safe to use as a feature?** `label2` is the target. Cross-tabulate
-   `label` against it and decide. Then say what class of leak it is.
-4. **Which comparison did you make?** The aboard share of the generated phones
-   moves one way on each shuttle and the other way pooled. Say, in one sentence
-   each, which of the two a transport authority should publish and which an
-   engineer should act on, and what would settle the disagreement.
-
-Answers in the Appendix."""),
-
-(CODE, '''# Your workings here.
-'''),
-
-(MARKDOWN, """## Appendix
-
-### Answers"""),
-
-(CODE, '''# 1. The value does no better than the presence. The two means differ by a
-#    couple of decibels against a spread of many more -- not separable.
-print("beacon   mean strength aboard   not aboard   difference")
-for beacon in BEACONS:
-    on = labelled.loc[labelled["label2"] == "IN", beacon].mean()
-    off = labelled.loc[labelled["label2"] == "OUT", beacon].mean()
-    print(f"  {beacon:7} {on:18.1f} {off:12.1f} {on - off:12.1f}")
-print("\\nA difference of one to three decibels, against readings that vary by")
-print("tens. Proximity cannot separate these classes on this route.")
-
-# 2. What each grain throws away.
-windows = labelled.assign(_t=pd.to_datetime(labelled["timestamp_utc"], utc=True, format="mixed")).dropna(subset=["_t"])
-print("\\ngrain   distinct windows   rows per window")
-for grain in ("1s", "5s", "30s"):
-    count = windows["_t"].dt.floor(grain).nunique()
-    print(f"  {grain:5} {count:15,} {len(windows)/count:15.1f}")
-
-# 3. `label` is the hand-recorded description that `label2` was derived from.
-print("\\n", pd.crosstab(labelled["label"], labelled["label2"]).to_string())
-print("\\nEvery label maps to exactly one target value. It is not a leak by")
-print("accident -- it is the target's own source. Same class as BusID.")'''),
-
-(MARKDOWN, card("assemble",
-                "The object Modules 3, 4 and 5 open. Lab 4 builds it from the "
-                "other three labs' own functions and its check grades every "
-                "clause: the grain, a mask beside what was filled and beside "
-                "nothing else, the split point recorded as an instant, and the "
-                "transform stored as it was fitted — on the training rows and on "
-                "nothing else.")),
-
-(MARKDOWN, """### What this notebook did not do
-
-It printed no row, no identifier, no coordinate, and drew no map. Everything
-above is a count, a share, a cross-tabulated total or a distribution.
-
-That is what makes it lawful to open the file at all, and it is why the numbers
-from it can appear on a slide while the file itself never leaves the machine it
-is stored on."""),
-
-(MARKDOWN, """## Answer to question four
-
-Both numbers are right, and they answer different questions. The pooled share is
-what the fleet delivered on each day, which is what a transport authority is
-accountable for. The per-shuttle share is what a shuttle does to the people on
-it, which is what an engineer changes. What settles the disagreement is knowing
-whether the day caused the fleet mix to change: if it did, the pooled comparison
-is the effect of the day; if the mix changed for an unrelated reason, the pooled
-comparison is an artefact of composition (Pearl, 2014)."""),
-
-(MARKDOWN, """## References
-
-- Akidau, T., Bradshaw, R., Chambers, C. et al. (2015). *The dataflow model: a practical approach to balancing correctness, latency, and cost in massive-scale, unbounded, out-of-order data processing.* Proceedings of the VLDB Endowment 8(12), 1792-1803. https://doi.org/10.14778/2824032.2824076
-- Bergmeir, C. & Benitez, J. M. (2012). *On the use of cross-validation for time series predictor evaluation.* Information Sciences 191, 192-213. https://doi.org/10.1016/j.ins.2011.12.028
-- Blyth, C. R. (1972). *On Simpson's paradox and the sure-thing principle.* Journal of the American Statistical Association 67(338), 364-366. https://doi.org/10.1080/01621459.1972.10482387
-- Box, G. E. P., Jenkins, G. M., Reinsel, G. C. & Ljung, G. M. (2015). *Time Series Analysis: Forecasting and Control*, 5th ed., section 2.1.4. Wiley.
-- Elvik, R. (2025). *Simpson's paradox: a collection of examples from road safety studies and emergency medicine.* Transportation Research Interdisciplinary Perspectives 31, 101471. https://doi.org/10.1016/j.trip.2025.101471
-- Kapoor, S. & Narayanan, A. (2023). *Leakage and the reproducibility crisis in machine-learning-based science.* Patterns 4(9), 100804. https://doi.org/10.1016/j.patter.2023.100804
-- Kaufman, S., Rosset, S., Perlich, C. & Stitelman, O. (2012). *Leakage in data mining: formulation, detection, and avoidance.* ACM Transactions on Knowledge Discovery from Data 6(4), article 15. https://doi.org/10.1145/2382577.2382579
-- Kuhn, M. & Johnson, K. (2019). *Feature Engineering and Selection: a Practical Approach for Predictive Models*, ch. 5 and ch. 8. Chapman and Hall/CRC Press. http://www.feat.engineering/
-- Little, R. J. A. & Rubin, D. B. (2019). *Statistical Analysis with Missing Data*, 3rd ed. Wiley. https://doi.org/10.1002/9781119482260
-- McKinney, W. (2022). *Python for Data Analysis*, 3rd ed. O'Reilly. https://wesmckinney.com/book/
-- Micci-Barreca, D. (2001). *A preprocessing scheme for high-cardinality categorical attributes in classification and prediction problems.* SIGKDD Explorations 3(1), 27-32. https://doi.org/10.1145/507533.507538
-- Pearl, J. (2014). *Comment: understanding Simpson's paradox.* The American Statistician 68(1), 8-13. https://doi.org/10.1080/00031305.2014.876829
-- Roberts, D. R., Bahn, V., Ciuti, S. et al. (2017). *Cross-validation strategies for data with temporal, spatial, hierarchical, or phylogenetic structure.* Ecography 40(8), 913-929. https://doi.org/10.1111/ecog.02881
-- Rubin, D. B. (1976). *Inference and missing data.* Biometrika 63(3), 581-592. https://doi.org/10.1093/biomet/63.3.581
-- Servizi, V., Persson, D. R., Pereira, F. C., Villadsen, H., Baekgaard, P., Peled, I. & Nielsen, O. A. (2023). *Is Not the Truth the Truth? Analyzing the impact of user validations for bus in/out detection in smartphone-based surveys.* IEEE Transactions on Intelligent Transportation Systems 24(11), 11905-11920. https://doi.org/10.1109/TITS.2023.3291493
-- Servizi, V., Persson, D. R., Pereira, F. C., Villadsen, H., Baekgaard, P., Rich, J. & Nielsen, O. A. (2026). *Scalable passenger detection using smartphone-bus implicit interactions.* IEEE Intelligent Transportation Systems Magazine 18(1), 65-78. https://doi.org/10.1109/MITS.2025.3611306
-- Simpson, E. H. (1951). *The interpretation of interaction in contingency tables.* Journal of the Royal Statistical Society, Series B 13(2), 238-241. https://doi.org/10.1111/j.2517-6161.1951.tb00088.x
-- van Buuren, S. (2018). *Flexible Imputation of Missing Data*, 2nd ed. Chapman and Hall/CRC Press. https://doi.org/10.1201/9780429492259 — free at https://stefvanbuuren.name/fimd/
-- Wang, R. & Strong, D. (1996). *Beyond accuracy: what data quality means to data consumers.* Journal of Management Information Systems 12(4), 5-33. https://doi.org/10.1080/07421222.1996.11518099
-- European Union (2016). *Regulation 2016/679, General Data Protection Regulation*, Article 4. https://eur-lex.europa.eu/eli/reg/2016/679/oj
-
-*All output above is Author's own, computed from `data/bus.csv` and
-`data/passengers.csv` by this notebook, in aggregate only, and from the course's
-own generator (`Module 2/exercises/data/make_phones.py`, seed 20200122) where a
-hidden true value was needed.*"""),
-]
-
-
-def main(*arguments):
-    notebook = new_notebook(cells=[
-        new_markdown_cell(text) if kind == MARKDOWN else new_code_cell(text)
-        for kind, text in CELLS
-    ])
-    notebook.metadata.update({
-        "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
-        "language_info": {"name": "python"},
-    })
-
-    if "--no-run" not in arguments:
-        # Executed from the repository root, because the cells address the
-        # archive as data/bus.csv and data/passengers.csv, which is where
-        # data/README.md and Module 2/README.md both say the instructor's copies
-        # live. Nothing is written back to them.
-        missing = [str(path) for path in (ROOT / "data" / "bus.csv",
-                                          ROOT / "data" / "passengers.csv")
-                   if not path.exists()]
-        if missing:
-            # Not being able to run is a different fact from running and
-            # failing, and it gets its own exit code so that a continuous
-            # integration job cannot report a pass it did not earn. The archive
-            # is personal data and is deliberately absent from any checkout.
-            print("cannot execute: the archive is not on this machine —",
-                  ", ".join(missing), file=sys.stderr)
-            print("wrote nothing. Run this beside the archive, or pass --no-run "
-                  "to build the notebook unexecuted.", file=sys.stderr)
-            return 2
-        from nbclient import NotebookClient
-        NotebookClient(notebook, timeout=900,
-                       resources={"metadata": {"path": str(ROOT)}}).execute()
-
-    OUTPUT.write_text(nbformat.writes(notebook))
-    executed = sum(1 for cell in notebook.cells if cell.get("outputs"))
-    print(f"wrote {OUTPUT.name} — {len(CELLS)} cells, {executed} with output")
+EX = "Module 2/exercises"
+
+nb = Notebook(2, HERE / "references.json")
+
+
+# The shape of every explanation cell above a code cell.
+def explain(goal: str, why: str, what: str, so_what: str, extra: str = "") -> None:
+    text = (f"**Goal.** {goal}\n\n**Why.** {why}\n\n**What the code does.** {what}\n\n"
+            f"**So what.** {so_what}")
+    nb.md(text + (f"\n\n{extra}" if extra else ""))
+
+
+# A copied file's path constants are computed from `__file__`; before each file is
+# copied in, the notebook points `__file__` at it, in a cell of its own.
+def repoint(relative: str) -> None:
+    explain(
+        f"Point `__file__` at `{relative}` in the working copy.",
+        "The next cells are copied verbatim from that file, and its path constants are "
+        "computed from `__file__`.",
+        f"Sets `__file__` to the working copy's `{relative}`.",
+        "The copied constants point where they point in the file itself.")
+    nb.code(f"__file__ = str(Path.cwd() / {relative!r})")
+
+
+# =============================================================================
+# Front matter
+# =============================================================================
+
+def front_matter() -> None:
+    nb.md("""
+    # Module 2 — Cleaning data and building features
+
+    **Data Mining and Analysis (course code CE3) · Aalborg University, Copenhagen**
+
+    *How does raw data become correct model input — and what does each step cost?*
+
+    The deck, `slides/Module2.pptx`, answers that question in four blocks, each
+    followed by twenty-five minutes at the keyboard. This notebook is its companion:
+    it follows the same four blocks in the same order, draws every figure the shown
+    slides carry, states every laboratory exercise as the lab file states it, and
+    runs the reference solution with all of its code on the page.
+
+    | Block | The question | Laboratory |
+    |---|---|---|
+    | 1 | Know the distribution, then clean: what does a column's shape allow, and how do two clocks become one table? | Lab 1 — audit and align |
+    | 2 | Missingness is a mechanism: why is a reading absent, and what does a fill invent? | Lab 2 — the mechanism |
+    | 3 | Features, and the transform that is part of the model: which constants are learned, and which column already knows the answer? | Lab 3 — fit, and find the leak |
+    | 4 | The series, and what it costs: windows, rhythms, a split that keeps time, and the price of a join | Lab 4 — windows and cost |
+
+    **How to read it.** Every code cell has a note above it: the *goal*, *why* it is
+    done, *what the code does*, and *so what* — what the result lets you say. Cells
+    that begin `# Source: … verbatim` are copied from the laboratory files and checked
+    against them, so the code you read is the code the labs run. Cells that draw a
+    figure name the slide they reproduce, by its title. Formulas are written in Python
+    with `sympy` and displayed as LaTeX; where it is cheap, a cell checks that the
+    slide's formula and the lab's code are the same function.
+
+    **Numbers.** `agrees()` prints a number a slide states beside the same number
+    computed here, and stops the notebook if they differ. `beside()` prints two
+    numbers that are expected to differ, with the reason — either because the slide
+    quotes the instructor's archive, which this notebook does not open (those values
+    are read from `slides/measured.json` and labelled *archive*), or because the deck
+    has a slip, which is then said plainly.
+
+    **Data.** Only what the labs receive: `exercises/data/bus_slice.csv.gz` — the
+    real telemetry of shuttle VJRD1A10224000055 on 22 and 23 January 2020, 48,290
+    readings, no personal data — and the phone traces that `exercises/data/prepare.py`
+    generates from `make_phones.py`, whose parameters are the archive's measured
+    magnitudes (`calibration.json`). The real phone file is the position record of
+    sixteen identifiable volunteers; it is not in the repository and nothing here
+    needs it.
+
+    **How to run it.** From `Module 2/notebook` (or `Module 2/exercises`), in the lab
+    environment (`bash setup.sh` in `exercises/`) plus
+    `pip install -r ../notebook/requirements.txt`. The notebook copies `exercises/`
+    to a temporary folder and works there. It runs in under a minute.
+
+    **Beyond the deck.** The deck's one appendix, "The displacement budget, term by
+    term", is worked in Block 2 beside the slide it belongs to.
+    """)
+
+
+# =============================================================================
+# Set-up
+# =============================================================================
+
+def setup() -> None:
+    nb.md("## Set-up")
+    explain(
+        "Load the libraries, and define the small tools every later cell uses.",
+        "A notebook that claims to reproduce a deck needs a way to show a figure, a "
+        "formula and a number side by side with what the slide printed.",
+        "`show()` renders a plotly figure to a static PNG embedded in the notebook, so it "
+        "displays anywhere, offline included. `formula()` displays sympy expressions as "
+        "LaTeX. `agrees()` prints a number a slide states beside the same number computed "
+        "here and stops the run when they differ; `beside()` prints two numbers that are "
+        "expected to differ, with the reason. One warning is silenced: scikit-learn 1.5 "
+        "passes an option newer SciPy no longer knows, and the warning names a local path.",
+        "If the deck and the code ever disagree, this notebook fails to run rather than "
+        "quietly showing a different number.")
+    nb.code(r'''
+    import json
+    import math
+    import os
+    import shutil
+    import sys
+    import tempfile
+    import types
+    import warnings
+    from pathlib import Path
+
+    import numpy as np
+    import pandas as pd
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+    import sympy as sp
+    from scipy import signal, stats
+    from IPython.display import Image, Math, display
+
+    warnings.filterwarnings("ignore", category=FutureWarning)
+    warnings.filterwarnings("ignore", message="Unknown solver options")
+    warnings.filterwarnings("ignore", message="Could not infer format")
+    pd.set_option("display.width", 120)
+
+    BLUE, ORANGE, GREY, RED, GREEN, NAVY = ("#2A78D6", "#E07B39", "#52514E",
+                                           "#C0392B", "#2E8B57", "#1F2A5A")
+
+
+    def show(fig, name, width=1000, height=560):
+        """Draw a plotly figure as a static image inside the notebook."""
+        fig.update_layout(template="plotly_white", width=width, height=height)
+        if fig.layout.margin.t is None:          # unless the figure asked for its own room
+            fig.update_layout(margin=dict(l=70, r=30, t=70, b=60))
+        display(Image(fig.to_image(format="png", width=width, height=height, scale=1)))
+
+
+    def formula(*parts):
+        """Display sympy expressions (or LaTeX strings) side by side."""
+        pieces = [p if isinstance(p, str) else sp.latex(p, order="none") for p in parts]
+        display(Math(r"\qquad ".join(pieces)))
+
+
+    def agrees(what, computed, stated, places):
+        """A number the deck states, recomputed here. Stops the run on a mismatch."""
+        mine = round(float(computed), places)
+        if abs(mine - float(stated)) > 0.5 * 10 ** -places + 1e-12:
+            raise AssertionError(f"{what}: the deck says {stated}, the code gives {mine}")
+        print(f"  {what:<66} deck {stated:<9} computed {int(mine) if places == 0 else mine}")
+
+
+    DIFFERENCES = []   # every beside() call, gathered for the closing table
+
+
+    def beside(what, computed, stated, why):
+        """Two numbers that are expected to differ, printed with the reason."""
+        DIFFERENCES.append((what, str(computed), str(stated), why))
+        print(f"  {what}: computed here {computed}; stated {stated} — {why}")
+    ''')
+
+    nb.md("""
+    ### A working copy of the exercises
+
+    The labs write files: `data/*.parquet` and `data/MANIFEST.json` when the data are
+    prepared, `out/handoff/` when Lab 4 hands its table on. A notebook that ran in the
+    student's `exercises/` would leave its own copies there, and a student could not
+    tell afterwards which files were theirs.
+    """)
+    explain(
+        "Find `exercises/`, copy it to a temporary folder, and work inside the copy.",
+        "The notebook must not modify the student's `exercises/`, and every relative path "
+        "the labs use (`data/…`, `out/…`) must still resolve.",
+        "Looks for the folder that holds `lab_support.py`, copies it without anything a "
+        "previous run generated (`out/`, Parquet files, the manifest, caches), and changes "
+        "the working directory to the copy. The temporary path is never printed, so that "
+        "two runs of the notebook give identical output. The folder it started in is kept "
+        "as `STARTED_IN`, so that the last cell can step back there and delete the copy.",
+        "From here on `Path.cwd()` is a disposable `exercises/`. `SOURCE` still points at "
+        "the real one, and is only ever read — for the two files of recorded archive "
+        "numbers the slides quote.")
+    nb.code(r'''
+    def find_exercises():
+        here = Path.cwd()
+        for candidate in (here, here / "exercises", here.parent / "exercises",
+                          here / "Module 2" / "exercises"):
+            if (candidate / "lab_support.py").exists() and (candidate / "data" / "make_phones.py").exists():
+                return candidate.resolve()
+        raise FileNotFoundError("run this notebook from Module 2/notebook or Module 2/exercises")
+
+
+    STARTED_IN = Path.cwd()
+    SOURCE = find_exercises()
+    MODULE = SOURCE.parent
+    WORK = Path(tempfile.mkdtemp(prefix="module2_notebook_")) / "exercises"
+    shutil.copytree(SOURCE, WORK, ignore=shutil.ignore_patterns(
+        "out", "*.parquet", "MANIFEST.json", "__pycache__", ".venv", "venv", "landing",
+        ".your_attempt", ".attempts.json", ".ipynb_checkpoints", "timing.json"))
+    os.chdir(WORK)
+    print("working in a temporary copy of Module 2/exercises; the original is only read")
+    print("copied:", ", ".join(sorted(p.name for p in WORK.iterdir() if not p.name.startswith("."))))
+    ''')
+
+    nb.md("""
+    ### The laboratory machinery, in full
+
+    The labs share one support file, `exercises/lab_support.py`: the unsolved marker,
+    the loaders, and Module 1's `check_against`, copied there so that two modules
+    validate the same table by one rule. Nothing below is imported from the lab
+    files: the next cells *are* them.
+    """)
+    explain(
+        "Let the lab files' path constants resolve inside a notebook.",
+        "Each file finds its data relative to its own location (`__file__`), which a "
+        "notebook does not have.",
+        "Points `__file__` at `lab_support.py` in the working copy. Before each later file "
+        "is copied in, `__file__` is pointed at that file instead, and set back afterwards.",
+        "The next cells can then be copied from the files unchanged.")
+    nb.code(r'''
+    __file__ = str(Path.cwd() / "lab_support.py")
+    assert Path(__file__).exists()
+    ''')
+    explain(
+        "Define the loaders and the upstream check every lab uses.",
+        "`load_bus()` returns the real telemetry; `load_phones()` returns generated phone "
+        "traces, and says so; `check_against()` is Module 1's declaration run as code — it "
+        "asks whether a frame is fit for use by the step that consumes it, which is how Wang "
+        "and Strong define data quality [@wang1996].",
+        "Copies `lab_support.py` verbatim: the three states a check can report "
+        "(`NotSolved`, `EnvironmentNotReady`, or a failure), the loaders, and "
+        "`check_against`. Only the file's logging-handler set-up is left out; it matters "
+        "only when a generated table is missing, which the next cells prevent.",
+        "Every table below comes through one of these functions, exactly as in the labs.")
+    nb.source(f"{EX}/lab_support.py", "HERE", "DATA", "BUS_SLICE", "MODULE1_PROFILE", "_log",
+              "_warned", "NotSolved", "EnvironmentNotReady", "_fallback_warning", "load_bus",
+              "load_phones", "load_simpson", "load_module1_profile", "check_against",
+              cite="[@wang1996]")
+    repoint("_narrate.py")
+    explain(
+        "Give the solutions the narration helpers they print with.",
+        "Each solution's demonstration tells its story through `narrator`, `show_table` and "
+        "`save_figure`; running the demonstration here needs the same three.",
+        "Copies `narrator` and `show_table` from `_narrate.py` verbatim (with `__file__` "
+        "pointed at that file just before).",
+        "The demonstrations further down run unchanged. Their lines begin with the seconds "
+        "since the narrator started, which is the one part of the output that differs "
+        "from run to run.")
+    nb.source(f"{EX}/_narrate.py", "HERE", "OUT", "_START", "_Elapsed", "narrator", "show_table")
+    explain(
+        "Replace `save_figure` with one that shows the figure in place.",
+        "In the terminal `save_figure` writes `out/lab_0K_<name>.html` and a PNG; the "
+        "notebook shows figures instead of writing them.",
+        "Applies the same layout as `_narrate.py` (template, size, margins), displays the "
+        "image, and narrates where it went, as the original does.",
+        "This is the only function of the lab machinery that the notebook rewrites.")
+    nb.code(r'''
+    def save_figure(fig, name, lab, logger=None, width=1000, height=560):
+        """The notebook's save_figure: the layout of exercises/_narrate.py, shown in
+        place instead of written to out/lab_0K_<name>.html."""
+        fig.update_layout(template="plotly_white", width=width, height=height,
+                          margin=dict(l=60, r=30, t=60, b=60))
+        display(Image(fig.to_image(format="png", width=width, height=height, scale=1)))
+        (logger.info if logger else print)(f"figure -> shown here (lab_{lab:02d}_{name})")
+    ''')
+
+    nb.md("""
+    ### The phone traces: generated, from the archive's measured magnitudes
+
+    The real phone file is personal data, so the labs get a generator instead. Every
+    parameter it uses was measured on the real file by `slides/measure.py` and written
+    to `data/calibration.json`; the one construction — which volunteer rode which
+    shuttle on which day — is labelled as such in the code.
+    """)
+    repoint("data/make_phones.py")
+    explain(
+        "Define the generator the labs' phone traces come from.",
+        "Block 2 needs the true value of every reading the phones did not record, and "
+        "only a generator can have it. Lab 1's Simpson's paradox is planted here too "
+        "(`RIDERS`).",
+        "Copies `data/make_phones.py` verbatim; `__file__` was pointed at it just before, so "
+        "that `calibration.json` is found beside it.",
+        "`generate(day, with_truth=True)` returns the student's columns plus the hidden "
+        "truth: the signal every reading would have had, the distance to each beacon, and "
+        "the aboard state.")
+    nb.source(f"{EX}/data/make_phones.py", "HERE", "CALIBRATION", "SEED", "BEACONS", "PROXIMITY",
+              "RANGE_METRES", "STRENGTH_AT_ONE_METRE", "PATH_LOSS", "PER_PHONE", "RIDERS",
+              "_riders_for", "generate", "simpson_table")
+    repoint("data/prepare.py")
+    explain(
+        "Define the preparation step `setup.sh` runs before any lab.",
+        "The labs never generate data at import time; `prepare.py` writes every table "
+        "once, verifies the shipped slice against Module 1's declaration, and records a "
+        "manifest.",
+        "Copies the pieces of `data/prepare.py` verbatim, `main()` included; `__file__` was "
+        "pointed at it just before.",
+        "Running `main()` in the working copy gives the notebook exactly the files a "
+        "student's `bash setup.sh` gives them.")
+    nb.source(f"{EX}/data/prepare.py", "HERE", "EXERCISES", "MANIFEST", "SLICE", "MODULE1_PROFILE",
+              "PROFILE_SCHEMA", "SIMPSON_COLUMNS", "content_hash", "table_entry",
+              "check_module1_profile", "simpson_frame", "main")
+    explain(
+        "Let the copied code's own `import` lines find the functions defined above.",
+        "`prepare.py` imports `generate` from `make_phones` and `check_against` from "
+        "`lab_support`; later, `make_figs.py` and the Lab 4 solution import from the other "
+        "labs. Importing the files would run the files, not the cells.",
+        "`as_module(name, …)` puts a module object holding the notebook's own functions "
+        "into `sys.modules`, so `from make_phones import generate` returns the function "
+        "defined in the cell above. Then `__file__` is set back to `lab_support.py`.",
+        "Every `import` in the copied code resolves to code on this page.")
+    nb.code(r'''
+    def as_module(name, **objects):
+        """A module named `name` whose contents are objects defined in this notebook."""
+        module = types.ModuleType(name)
+        module.__dict__.update(objects)
+        sys.modules[name] = module
+
+
+    as_module("lab_support", **{name: globals()[name] for name in (
+        "NotSolved", "EnvironmentNotReady", "load_bus", "load_phones", "load_simpson",
+        "load_module1_profile", "check_against")})
+    as_module("make_phones", generate=generate, simpson_table=simpson_table,
+              CALIBRATION=CALIBRATION, RIDERS=RIDERS)
+    __file__ = str(Path.cwd() / "lab_support.py")
+    ''')
+    explain(
+        "Prepare the data, exactly as `bash setup.sh` does.",
+        "The working copy was made without generated files, so they are generated here, "
+        "deterministically (seed 20200122).",
+        "Calls `prepare.py`'s `main()` when any of the tables the labs read is missing.",
+        "Two days of phones, their truth-kept twins, the two-day Simpson frame, and a "
+        "manifest of hashes; the slice is verified against Module 1's profile, not "
+        "rewritten.")
+    nb.code(r'''
+    needed = ["phones_2020-01-22.parquet", "phones_truth_2020-01-22.parquet",
+              "phones_2020-01-23.parquet", "phones_truth_2020-01-23.parquet", "simpson.parquet"]
+    if any(not (Path("data") / name).exists() for name in needed):
+        assert main() == 0, "prepare.py failed"
+    ''')
+
+    nb.md("### The data, and the archive numbers the slides quote")
+    explain(
+        "Load the three tables used throughout, and the recorded archive facts.",
+        "Most slides compute on the lab data; a few quote the instructor's archive, which "
+        "this notebook does not open. Those values were written, as aggregates only, to "
+        "`slides/measured.json` (and Module 1's to `Module 1/slides/measured.json`).",
+        "Loads the slice, the first generated day as the student sees it, and the same day "
+        "with its hidden truth; sorts the slice in time; reads both measured.json files "
+        "(read-only, from the repository).",
+        "`archive(key)` and `module1(key)` return a recorded value; every use of one is "
+        "labelled *archive* in the output.")
+    nb.code(r'''
+    bus = load_bus()
+    phones = load_phones()                       # 2020-01-22, the student's view
+    truth = load_phones(with_truth=True)         # the same rows, hidden columns kept
+    in_time = (bus.assign(_t=pd.to_datetime(bus["utc_time"], utc=True))
+                  .sort_values("_t").reset_index(drop=True))
+
+    FACTS = json.loads((MODULE / "slides" / "measured.json").read_text())
+    MODULE1 = json.loads((MODULE.parent / "Module 1" / "slides" / "measured.json").read_text())
+
+
+    def archive(key):
+        """A value measure.py recorded from the archive (slides/measured.json)."""
+        return FACTS[key]["value"]
+
+
+    def module1(key):
+        """A value Module 1 recorded from the archive (Module 1/slides/measured.json)."""
+        return MODULE1[key]["value"]
+
+
+    METRES_PER_DEGREE = 111_320    # Module 1's constant for the route's extent
+
+
+    def to_metres(lat, lon):
+        """East and north offsets in metres from the south-west corner of the slice."""
+        east = (lon - bus["lon"].min()) * METRES_PER_DEGREE * np.cos(np.radians(bus["lat"].mean()))
+        north = (lat - bus["lat"].min()) * METRES_PER_DEGREE
+        return np.asarray(east), np.asarray(north)
+
+
+    print(f"vehicle slice   {len(bus):,} rows x {bus.shape[1]} columns, "
+          f"{bus['vehicle_id'].nunique()} vehicle, {in_time['_t'].min():%Y-%m-%d %H:%M} to "
+          f"{in_time['_t'].max():%Y-%m-%d %H:%M} UTC")
+    print(f"phones, day 1   {len(phones):,} rows x {phones.shape[1]} columns (generated), "
+          f"{phones['phone_id'].nunique()} phones")
+    print(f"truth, day 1    {truth.shape[1] - phones.shape[1]} hidden columns beside them")
+    ''')
+
+
+# =============================================================================
+# Introduction: slides 3-10
+# =============================================================================
+
+def introduction() -> None:
+    nb.md("""
+    ---
+    # The case, and the question
+
+    *Slides: "Where this sits — five modules, one case, one thread", "The case — two
+    shuttles, sixteen phones, five beacons", "Objectives, prerequisites, and …",
+    "… four things people get wrong", "Data cleaning and feature engineering
+    overview", "Supporting data products on layered data architecture", "IID vs
+    timeseries" and "Two sources observe one behaviour from opposite sides, and
+    neither answers alone".*
+
+    One case runs through the course: automated shuttles on a fixed loop in
+    Copenhagen in January 2020, and volunteers carrying instrumented phones. The
+    question is whether a given volunteer was on a given shuttle at a given moment.
+    The vehicle file observes the shuttle; the phone file observes the passenger;
+    neither answers alone, and this module is the work of making them one table.
+
+    The six objectives, in one line each: join the two files on shared time; account
+    for every row; say whether a two-day difference is the days or the fleet; measure
+    what a fill invents; fit every constant on the training rows only; and find the
+    column that already contains the answer.
+
+    *Not redrawn:* the title photograph and logo; the video on "Where this sits" and
+    its poster frame; two generated posters ("Ingesting trust", "Four data engineering
+    misconceptions"), whose two numbers — 13.6 decibels invented and 64 per cent of
+    the variation destroyed — are recomputed in Block 2; and the bronze, silver and
+    gold pipeline diagram, a vendor drawing of layers that carries no data.
+    """)
+
+    explain(
+        "Draw the route the shuttle drove, from its own positions.",
+        "The slide shows a schematic of the loop and its three stops. The slice holds every "
+        "position the vehicle reported, and the doors' state, so the loop and the places "
+        "where the doors opened can be drawn from the data itself.",
+        "Converts latitude and longitude to metres with Module 1's constant "
+        "(111,320 m per degree, the east axis scaled by the cosine of the latitude), plots "
+        "every reading, marks the readings taken with the doors open, and measures the "
+        "bounding box. Then finds the stops: each unbroken run of \"opened\" readings in time "
+        "order is one door opening, placed at its median position; openings closer than "
+        "10 metres are joined (single linkage), and a place where the doors opened at least "
+        "five times is called a stop. The stops are lettered A, B, C by how often the doors "
+        "opened there. That is an inference from the doors: the slice does not name its "
+        "stops, so these letters need not be the archive's \"Stop A\", \"Stop B\", \"Stop C\".",
+        "The whole trial fits in a box of about 67 by 86 metres, and the doors opened at "
+        "three places — the slide's three stops, found from the data. Beacon range is tens "
+        "of metres, which is why, in Block 2, hearing the vehicle's beacon cannot tell aboard "
+        "from waiting at a stop.")
+    nb.figure("route_map", r'''
+    from scipy.cluster.hierarchy import fcluster, linkage
+
+    east, north = to_metres(bus["lat"], bus["lon"])
+    doors_open = (bus["door_state"] == "opened").to_numpy()
+    fig = go.Figure()
+    fig.add_scatter(x=east[~doors_open], y=north[~doors_open], mode="markers",
+                    marker=dict(color=BLUE, size=3, opacity=0.25), name="position, doors closed")
+    fig.add_scatter(x=east[doors_open], y=north[doors_open], mode="markers",
+                    marker=dict(color=ORANGE, size=4, opacity=0.5), name="position, doors opened")
+    width_m, height_m = float(east.max()), float(north.max())
+    fig.add_shape(type="rect", x0=0, y0=0, x1=width_m, y1=height_m,
+                  line=dict(color=GREY, dash="dash"))
+
+    # Stops, inferred: one door opening = one unbroken run of "opened" in time order.
+    opened_in_time = (in_time["door_state"] == "opened").to_numpy()
+    run = np.r_[0, np.cumsum(opened_in_time[1:] != opened_in_time[:-1])]
+    run_east, run_north = to_metres(in_time["lat"], in_time["lon"])
+    openings = (pd.DataFrame({"run": run, "east": run_east, "north": run_north})[opened_in_time]
+                  .groupby("run")[["east", "north"]].median())
+    place = fcluster(linkage(openings.to_numpy(), "single"), 10, "distance")
+    places = (openings.assign(place=place).groupby("place")
+                .agg(east=("east", "mean"), north=("north", "mean"), openings=("east", "size")))
+    stops = (places[places["openings"] >= 5].sort_values("openings", ascending=False)
+               .reset_index(drop=True))
+    stops.index = [f"stop {letter}" for letter in "ABCDEFG"[:len(stops)]]
+    fig.add_scatter(x=stops["east"], y=stops["north"], mode="markers+text", text=list(stops.index),
+                    textposition="middle right", textfont=dict(size=15, color=NAVY),
+                    marker=dict(color=NAVY, size=16, symbol="diamond-open", line=dict(width=3)),
+                    name="stop, inferred from where the doors opened (letters are the notebook's)")
+    fig.update_layout(title=f"The loop from the vehicle's own positions: "
+                            f"{height_m:.0f} m north-south by {width_m:.0f} m east-west",
+                      xaxis_title="metres east", yaxis_title="metres north",
+                      yaxis_scaleanchor="x", legend=dict(orientation="h", y=-0.15))
+    show(fig, "route_map", width=800, height=720)
+    agrees("route extent north-south, metres (Module 1's recipe)", height_m, module1("extent_m")[0], 0)
+    agrees("route extent east-west, metres", width_m, module1("extent_m")[1], 0)
+    beside("vehicle file", f"{len(bus):,} rows, {bus.shape[1]} columns, {bus['vehicle_id'].nunique()} vehicle",
+           f"{archive('bus_rows'):,} rows, {module1('columns')} columns, {module1('vehicles')} vehicles (archive)",
+           "the slide counts the archive's bus file, both shuttles; the lab slice keeps the one that ran on both days")
+    print(f"  door openings: {len(openings)}; places where the doors opened: {len(places)}; "
+          f"with at least five openings (stops): {len(stops)}")
+    print(stops.round(1).to_string())
+    ''', slides=["4"], treatment="lab data: the slide's schematic replaced by the loop drawn "
+                                "from the slice's positions; stops A, B, C inferred from where "
+                                "the doors opened (the letters are the notebook's)")
+
+    explain(
+        "Show why a time series is not a bag of independent draws.",
+        "The slide contrasts independent draws with an ordered series. On this telemetry "
+        "the difference is a number: consecutive speeds correlate at 0.9967 on 22 January "
+        "(Module 1's measurement); the same values shuffled are measured below. A series "
+        "that correlates with itself holds fewer independent observations than it has "
+        "readings, which Block 1 quantifies as the effective sample size [@bayley1946].",
+        "Takes ten minutes of 22 January's speed from 10:15 UTC in time order and the same values shuffled (seed "
+        "20200122), draws both, and plots each reading against the one before it. The "
+        "autocorrelation is the Box–Jenkins estimator the course grades, one mean and one "
+        "sum of squares [@box2015].",
+        "Order carries information. A random split, a z-score over readings and a plain "
+        "standard error all assume it does not.")
+    nb.figure("iid_vs_series", r'''
+    def lag_one(values):
+        x = np.asarray(values, float)
+        centred = x - x.mean()
+        return float(np.sum(centred[1:] * centred[:-1]) / np.sum(centred ** 2))
+
+    slice_day_one = in_time[in_time["_t"].dt.date.astype(str) == "2020-01-22"]
+    stretch = slice_day_one[(slice_day_one["_t"] >= "2020-01-22 10:15:00+00:00")
+                            & (slice_day_one["_t"] < "2020-01-22 10:25:00+00:00")]["speed"].to_numpy()
+    shuffled = np.random.default_rng(20200122).permutation(stretch)
+    fig = make_subplots(rows=2, cols=2, column_widths=[0.7, 0.3], vertical_spacing=0.16,
+                        subplot_titles=("in time order",
+                                        f"each reading against the one before: r₁ = {lag_one(stretch):.3f}",
+                                        "the same values, shuffled",
+                                        f"each against the one before: r₁ = {lag_one(shuffled):.3f}"))
+    for row, values, colour in ((1, stretch, BLUE), (2, shuffled, GREY)):
+        fig.add_scatter(y=values, mode="lines", line=dict(color=colour, width=1),
+                        showlegend=False, row=row, col=1)
+        fig.add_scatter(x=values[:-1], y=values[1:], mode="markers",
+                        marker=dict(color=colour, size=3, opacity=0.4), showlegend=False,
+                        row=row, col=2)
+    fig.update_annotations(font_size=12)
+    fig.update_xaxes(title_text="reading (0.5 s apart)", row=2, col=1)
+    fig.update_yaxes(title_text="speed, m/s", row=1, col=1)
+    fig.update_yaxes(title_text="speed, m/s", row=2, col=1)
+    fig.update_layout(title="A time series (top) and the same numbers as independent draws (bottom)")
+    show(fig, "iid_vs_series", height=600)
+    agrees("lag-1 autocorrelation of speed, 22 January, in time order",
+           lag_one(slice_day_one["speed"]), module1("speed_autocorrelation_lag1"), 4)
+    print(f"  the ten minutes drawn: r1 = {lag_one(stretch):.4f} in order, "
+          f"{lag_one(shuffled):.4f} shuffled")
+    ''', slides=["9"], treatment="lab data: the slide's icon drawing replaced by ten minutes "
+                                "of the slice's speed, in order and shuffled")
+
+    explain(
+        "Put the two clocks on one axis.",
+        "The alignment slides say the vehicle reports every 0.5 seconds and the phones "
+        "every 0.993, so no reading in one file has a partner in the other. Drawing six "
+        "seconds of both makes the grain choice visible.",
+        "Measures both median intervals (per vehicle and per phone, within a day), then "
+        "draws the vehicle's readings and one phone's readings between 09:00:00 and "
+        "09:00:06 UTC on 22 January, with the five-second tumbling windows behind them.",
+        "The phone's ticks drift against the vehicle's by 0.007 s a reading; a window, not a "
+        "timestamp, is what the two can share.")
+    nb.figure("two_clocks", r'''
+    vehicle_step = float(in_time.groupby(in_time["_t"].dt.date)["_t"].diff().dt.total_seconds().median())
+    phone_times = pd.to_datetime(phones["timestamp_utc"], utc=True)
+    phone_step = float(phones.assign(_t=phone_times).sort_values(["phone_id", "_t"])
+                       .groupby("phone_id")["_t"].diff().dt.total_seconds().median())
+    agrees("vehicle interval, seconds", vehicle_step, archive("bus_interval_s"), 3)
+    agrees("phone interval, seconds (generated at the archive's rate)", phone_step,
+           archive("phone_interval_s"), 3)
+
+    start = pd.Timestamp("2020-01-22 09:00:00", tz="UTC")
+    stop = start + pd.Timedelta(seconds=6)
+    v = in_time[(in_time["_t"] >= start) & (in_time["_t"] < stop)]["_t"]
+    p = phone_times[(phones["phone_id"] == "p00") & (phone_times >= start) & (phone_times < stop)]
+    seconds = lambda stamps: (stamps - start).dt.total_seconds()
+    fig = go.Figure()
+    fig.add_vrect(x0=0, x1=5, fillcolor="rgba(42,120,214,0.06)", line_width=0,
+                  annotation_text="window [09:00:00, 09:00:05)", annotation_position="top left")
+    fig.add_vline(x=5, line=dict(color=GREY, dash="dash"))
+    fig.add_scatter(x=seconds(v), y=np.ones(len(v)), mode="markers",
+                    marker=dict(symbol="line-ns-open", size=26, color=BLUE, line=dict(width=2)),
+                    name=f"vehicle, median every {vehicle_step:.3f} s")
+    fig.add_scatter(x=seconds(p), y=np.zeros(len(p)), mode="markers+text",
+                    marker=dict(symbol="line-ns-open", size=26, color=ORANGE, line=dict(width=2)),
+                    text=[f"{s:.3f}" for s in seconds(p)], textposition="bottom center",
+                    name=f"phone p00, every {phone_step:.3f} s")
+    fig.update_yaxes(tickvals=[0, 1], ticktext=["phone", "vehicle"], range=[-0.8, 1.6])
+    fig.update_layout(title="Two clocks, no shared timestamp: six seconds of 22 January",
+                      xaxis_title="seconds after 09:00:00 UTC", legend=dict(orientation="h", y=-0.25))
+    show(fig, "two_clocks", height=380)
+    print("  phone ticks, seconds:", ", ".join(f"{s:.3f}" for s in seconds(p)))
+    beside("the fifth phone tick on the slide's drawing", f"{4 * phone_step:.3f} s", "2.973 s",
+           "the generated poster labels the fifth tick 2.973 s; four steps of 0.993 s are 3.972 s")
+    ''', slides=["10", "22"], treatment="lab data: the slide's generated drawing of the two "
+                                        "clocks replaced by the slice's and the phones' own "
+                                        "timestamps")
+
+    explain(
+        "Set the two sources side by side, and the labels they carry.",
+        "The slide describes the archive: 53,155 vehicle rows, 40 phone columns from 16 "
+        "volunteers, labels on 100 per cent of the first day and none of the second. The "
+        "lab data differ in known ways, and the differences matter later (Module 5 starts "
+        "from the missing second-day labels).",
+        "Counts the same quantities on the slice and the two generated days, and prints the "
+        "archive's recorded values beside them.",
+        "The generator labels both days — it has to, to plant Lab 1's reversal — so "
+        "\"one day of labels\" is a fact about the archive that the lab data do not "
+        "reproduce.")
+    nb.code(r'''
+    day_two = load_phones(day="2020-01-23")
+    coverage = {day: round(float(frame["label2"].notna().mean()) * 100, 1)
+                for day, frame in (("2020-01-22", phones), ("2020-01-23", day_two))}
+    beside("phone file", f"{phones.shape[1]} columns (generated), "
+           f"{phones['phone_id'].nunique()} + {day_two['phone_id'].nunique()} phones on the two days",
+           f"{archive('phone_columns')} columns, {archive('phones')} volunteers "
+           f"({archive('phones_per_day')['2020-01-22']} + {archive('phones_per_day')['2020-01-23']}) (archive)",
+           "the generator keeps the per-day phone counts and only the columns the labs use")
+    beside("label coverage by day, per cent", coverage, f"{archive('label_coverage_per_day')} (archive)",
+           "the generator labels both days so that Lab 1's two-day comparison exists; in the "
+           "archive only 22 January was labelled")
+    agrees("aboard share of labelled rows, first day, per cent",
+           100 * (phones["label2"] == "IN").mean(), archive("aboard_share_of_labelled"), 1)
+    ''')
+
+
+# =============================================================================
+
+def coalesce_streams(path: Path) -> None:
+    """Join consecutive pieces of one stream in each cell's stored output.
+
+    The kernel may deliver a cell's printed text in one piece or in several, which
+    makes two identical runs store different output lists. A local helper, so that
+    tools/notebook_kit.py stays as it is."""
+    import nbformat
+    notebook = nbformat.read(str(path), as_version=4)
+    for cell in notebook.cells:
+        if cell.cell_type != "code":
+            continue
+        joined = []
+        for output in cell.get("outputs", []):
+            if (output.get("output_type") == "stream" and joined
+                    and joined[-1].get("output_type") == "stream" and joined[-1]["name"] == output["name"]):
+                joined[-1]["text"] += output["text"]
+            else:
+                joined.append(output)
+        cell["outputs"] = joined
+    nbformat.write(notebook, str(path))
+
+
+def main() -> int:
+    front_matter()
+    setup()
+    introduction()
+    from sections import block1, block2, block3, block4, closing
+    block1.build(nb, explain)
+    block2.build(nb, explain)
+    block3.build(nb, explain)
+    block4.build(nb, explain)
+    closing.build(nb, explain)
+    nb.md("""
+    ---
+    ## Where this notebook and the slides differ, and why
+
+    The slides are the master and are not changed. Where a number computed here does
+    not match the number a slide prints, the notebook printed both at that point, with
+    the reason. The table gathers every one of them, as they were printed in this run.
+
+    Differences in wording and labels, which the table cannot hold:
+
+    - **Slide 20** (the normal-distribution figure): the density formula lacks σ under
+      the root and its exponent is garbled; the axis ticks read μ−3σ, μ−σ, μ, μ+σ, μ+2σ,
+      which is not symmetric. The notebook draws the density from `scipy.stats.norm`.
+    - **Slide 32** (the MCAR/MAR/MNAR picture): "the vehicle beacon is silent on 57 % to
+      86 %" is the range over all five beacons; the vehicle beacon alone is 57.0 % on
+      the archive.
+    - **Slide 42**: "preserves 87 % of the original variance" — 0.87 is a ratio of
+      standard deviations, so the variance kept is 0.87² ≈ 0.76; likewise 0.36 keeps
+      0.13 of the variance.
+    - **Source lines** on several slides credit `make_figs.py` for archive numbers that
+      `slides/measure.py` produces; `make_figs.py` never opens the archive.
+    - **Slide 67** spells "diffierent" and "Whatch".
+    - **Slide 4** (the case): the stops on the route map are lettered A, B, C by the
+      notebook, from where the vehicle's doors opened; the slice does not name its stops,
+      so the letters need not match the archive's "Stop A", "Stop B", "Stop C".
+    - **Slide 33** (two causes of absence): the slide's diagram draws the phone against
+      two shuttles; the lab slice holds one, so the notebook's redrawing measures the
+      phone's second distance to a stop, and places the phone by hand.
+    - **Slide 39** and the Lab 2 files: the masked moving average is the causal recursion
+      s_t = α·x_t + (1 − α)·s_{t−1}; Servizi et al. (2023), Appendix B, to which the lab's
+      docstrings attribute it, describe a window average weighted towards the window's
+      centre. Same family, different filter; the lab's docstrings are quoted unchanged.
+    - **Slide 83**: "costs accuracy on all of them" — a nearest match never changes the
+      partner of a row that was already matched, so widening the tolerance does not make
+      those rows worse; it removes the guarantee that any matched row is within one
+      second. Measured beside the slide's figure, with the accuracy the added rows lose.
+    - **Slides 81 and 85, and Labs 3 and 4**: the split by row puts one instant on both
+      sides (eleven rows train, one tests), and the Lab 4 solution fits the hand-off's
+      transform on three rows that `assemble` then sends to test. Both are in the lab
+      files, which are delivered and not changed; both are counted in the table, and
+      the notebook's own hand-off is fitted on the training rows.
+    - **Citations inside the lab stubs**, quoted verbatim and not changed: Wang and
+      Strong (1996) is cited for the conservation ledger, which the paper does not state
+      (it defines data quality as fitness for use, which fits the profile check); McKinney
+      (2022) is cited for the nearest match, whose `merge_asof` the book does not cover.
+    - **Lab 3's typed evidence**: `phone_speed`'s purity, cardinality and gap and the gaps
+      of the row counter and `rssi1` are typed into the solution; the notebook recomputes
+      all five with a stated recipe and they agree.
+    - **The stubs' slide titles** are checked against the deck in the cell below; each
+      one that is not a shown slide's title is a row of the table.
+    """)
+    explain(
+        "Check every slide title the lab stubs quote against the deck's own titles.",
+        "The stubs send the student to slides by title. A title that is not in the deck, or "
+        "is on a hidden slide, sends them nowhere; the slides are not changed, so the "
+        "notebook says where each one actually is.",
+        "Reads the slide titles and the hidden flags from `slides/Module2.pptx` (the file's "
+        "XML, read-only); takes from each stub's docstrings the block title after \"Where "
+        "it sits\" and every quoted \"Definition — …\"; looks each up among the titles. A "
+        "title found on a shown slide is printed with its number; any other is printed "
+        "beside the deck's slide that makes its point — a mapping the notebook states, "
+        "checked to be a real title — and recorded for the table.",
+        "Every quoted title either names a shown slide or has its row in the table below.")
+    nb.code(r'''
+    import ast
+    import re
+    import zipfile
+    from xml.etree import ElementTree
+
+    DRAWING = "http://schemas.openxmlformats.org/drawingml/2006/main"
+    PRESENTATION = "http://schemas.openxmlformats.org/presentationml/2006/main"
+    RELATION = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+    tidy = lambda text: re.sub(r"\s+", " ", text).strip()
+
+
+    def deck_titles(path):
+        """{title: (slide number, hidden)} for every slide of a .pptx, read from its XML."""
+        titles = {}
+        with zipfile.ZipFile(path) as deck:
+            presentation = ElementTree.fromstring(deck.read("ppt/presentation.xml"))
+            targets = {r.get("Id"): r.get("Target")
+                       for r in ElementTree.fromstring(deck.read("ppt/_rels/presentation.xml.rels"))}
+            for number, slide_id in enumerate(presentation.find(f"{{{PRESENTATION}}}sldIdLst"), start=1):
+                slide = ElementTree.fromstring(deck.read("ppt/" + targets[slide_id.get(f"{{{RELATION}}}id")]))
+                for shape in slide.iter(f"{{{PRESENTATION}}}sp"):
+                    placeholder = shape.find(f".//{{{PRESENTATION}}}nvPr/{{{PRESENTATION}}}ph")
+                    if placeholder is not None and placeholder.get("type") in ("title", "ctrTitle"):
+                        text = " ".join("".join(t.text or "" for t in paragraph.iter(f"{{{DRAWING}}}t"))
+                                        for paragraph in shape.iter(f"{{{DRAWING}}}p"))
+                        titles[tidy(text)] = (number, slide.get("show") == "0")
+        return titles
+
+
+    def quoted_titles(stub):
+        """The block title and every "Definition — …" a stub's docstrings quote."""
+        tree = ast.parse(stub.read_text(encoding="utf-8"))
+        text = tidy(" ".join(ast.get_docstring(node) or "" for node in [tree] + [
+            node for node in tree.body if isinstance(node, ast.FunctionDef)]))
+        found = re.findall(r'Where it sits: Block \w+ — "([^"]+)"', text) + re.findall(r'"(Definition — [^"]+)"', text)
+        return list(dict.fromkeys(found))
+
+
+    titles = deck_titles(MODULE / "slides" / "Module2.pptx")
+    # The notebook's reading of which slide makes each missing title's point.
+    CLOSEST = {
+        "Bronze to silver — what changes, and what must not": "Silver is derived and rebuildable, and bronze must never be modified",
+        "The mask, and why it must survive": "A fill must be recorded, because a filled value and a measured value look alike",
+        "The leak in this archive": "BusID is not correlated with the target, it is the target under another name",
+        "What the join costs": "Widening the tolerance thirtyfold buys few rows and costs accuracy on all of them",
+        "Definition — the six window features": "Definition — six window features",
+        "Definition — a split by time, never at random": "Definition — a split by time, never at random for timeseries",
+        "Definition — a nearest match within a tolerance": "Definition — a nearest match within a tolerance (fuzzy time-based join)",
+        "Definition — the table this module hands to the next three": "Definition — the table this module hands to the next steps",
+    }
+    for stub in sorted((Path.cwd() / "labs").glob("0*.py")):
+        for title in quoted_titles(stub):
+            if title in titles and not titles[title][1]:
+                print(f"  {stub.name}: \"{title}\" is slide {titles[title][0]}")
+            elif title in titles:
+                beside(f"{stub.name}: slide title", f"slide {titles[title][0]}, hidden in the deck",
+                       f"\"{title}\" (the stub)", "the slide exists but is not shown in the lecture; "
+                       "the stub states the definition in full")
+            else:
+                deck_title = CLOSEST[title]
+                number, hidden = titles[deck_title]           # a KeyError here would mean a wrong mapping
+                assert not hidden
+                beside(f"{stub.name}: slide title", f"slide {number}, \"{deck_title}\"",
+                       f"\"{title}\" (the stub)", "no slide has the stub's title; this is the slide that makes its point")
+    ''')
+    explain(
+        "Gather every number this notebook printed beside a slide's number.",
+        "A reader should find every difference between the notebook and the slides in one "
+        "place, with its reason, without searching the notebook.",
+        "Tabulates what each `beside()` call recorded during this run: the quantity, the value "
+        "computed here, the value on the slide or in the archive, and why they differ.",
+        "Every row is explained where it first appears; none of them is a change to the slides.")
+    nb.code('''
+    with pd.option_context("display.max_colwidth", None):     # the reasons, in full
+        display(pd.DataFrame(DIFFERENCES, columns=["quantity", "computed here",
+                                                   "the slide or the archive", "why they differ"]))
+    ''')
+    explain(
+        "Delete the temporary copy of the exercises.",
+        "The notebook worked in a copy so as never to write into the student's folder; the "
+        "copy, with the Parquet files, the hand-off and the figures' data it generated, "
+        "should not outlive the run.",
+        "Steps back to the folder the notebook started in (`STARTED_IN`), removes the "
+        "temporary folder with everything in it, and confirms that it is gone. The "
+        "student's `exercises/` was only ever read.",
+        "Running the notebook leaves nothing behind but its own outputs.")
+    nb.code(r'''
+    os.chdir(STARTED_IN)
+    shutil.rmtree(WORK.parent)
+    print("temporary copy of exercises/ removed:", not WORK.parent.exists())
+    ''')
+    nb.write(OUTPUT)
+    print(f"wrote {OUTPUT.relative_to(ROOT)}")
+    if "--no-run" not in sys.argv:
+        execute(OUTPUT, HERE)
+        coalesce_streams(OUTPUT)
+        print(f"executed {OUTPUT.relative_to(ROOT)} from {HERE.relative_to(ROOT)}")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main(*sys.argv[1:]) or 0)
+    sys.exit(main())

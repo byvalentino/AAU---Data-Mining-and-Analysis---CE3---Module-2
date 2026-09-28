@@ -1,0 +1,626 @@
+{
+ "about": "Every picture and chart on a shown slide of the deck, and where the notebook draws it. Formula images and definitions typed into text shapes are listed too, as 'shapes' or by their image, mapped to the notebook's sympy equations. Checked by tools/check_notebook_sources.py.",
+ "decks": [
+  "Module2.pptx"
+ ],
+ "elements": [
+  {
+   "deck": "Module2.pptx",
+   "slide": 1,
+   "element": "image21.jpeg",
+   "treatment": "excluded",
+   "reason": "photograph, title background; carries no data or concept"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 1,
+   "element": "image7.png",
+   "treatment": "excluded",
+   "reason": "university logo"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 2,
+   "element": "image22.png",
+   "treatment": "excluded",
+   "reason": "generated poster (\"Ingesting trust\", made with Gemini) summarising Module 1; carries no data of its own"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 3,
+   "element": "image23.png",
+   "treatment": "excluded",
+   "reason": "poster frame of the video media1.mp4 on this slide: camera footage of the stops and a shuttle; photographs, not data"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 4,
+   "element": "image24.png",
+   "figures": [
+    "route_map"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 6,
+   "element": "image25.png",
+   "treatment": "excluded",
+   "reason": "generated poster (\"Four data engineering misconceptions\", made with Gemini); its two numbers, 13.6 decibels invented and 64 per cent of the variation destroyed, are recomputed in Block 2 (figures imputation_by_distance and imputation_spread)"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 7,
+   "element": "image26.png",
+   "figures": [
+    "heavy_tails"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 8,
+   "element": "image27.png",
+   "treatment": "excluded",
+   "reason": "pipeline-layer diagram (medallion bronze, silver, gold; a vendor drawing credited on the slide); carries no data"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 9,
+   "element": "image28.png",
+   "figures": [
+    "iid_vs_series"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 10,
+   "element": "image29.png",
+   "figures": [
+    "two_clocks"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 15,
+   "element": "image30.png",
+   "figures": [
+    "distributions_one"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 16,
+   "element": "image31.png",
+   "figures": [
+    "distributions_two"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 17,
+   "element": "image30.png",
+   "figures": [
+    "distributions_one"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 17,
+   "element": "image32.png",
+   "figures": [
+    "distributions_three"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 18,
+   "element": "image30.png",
+   "figures": [
+    "distributions_one"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 18,
+   "element": "image31.png",
+   "figures": [
+    "distributions_two"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 18,
+   "element": "image32.png",
+   "figures": [
+    "distributions_three"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 19,
+   "element": "image33.png",
+   "figures": [
+    "clt_grid",
+    "clt_on_slice"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 20,
+   "element": "image34.png",
+   "figures": [
+    "normal_properties"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 20,
+   "element": "image35.png",
+   "equations": [
+    "normal_density"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 20,
+   "element": "image36.png",
+   "equations": [
+    "z_score"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 22,
+   "element": "image29.png",
+   "figures": [
+    "two_clocks"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 23,
+   "element": "shapes",
+   "equations": [
+    "tumbling_window"
+   ],
+   "note": "the definition's formula, typed in a text box"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 25,
+   "element": "shapes",
+   "equations": [
+    "ledger"
+   ],
+   "note": "the definition's formula, typed in a text box"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 26,
+   "element": "shapes",
+   "equations": [
+    "profile_breaches"
+   ],
+   "note": "the definition, typed in a text box"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 27,
+   "element": "image37.jpeg",
+   "treatment": "excluded",
+   "reason": "copyrighted cartoon characters arranged as a scatter plot; the paradox is drawn from the planted data in figure simpson (slide 28) and written in equation simpson"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 27,
+   "element": "shapes",
+   "equations": [
+    "simpson"
+   ],
+   "note": "the definition's inequalities, typed in a text box"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 28,
+   "element": "image38.png",
+   "figures": [
+    "simpson"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 32,
+   "element": "image39.png",
+   "figures": [
+    "three_mechanisms"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 32,
+   "element": "shapes",
+   "equations": [
+    "mechanisms"
+   ],
+   "note": "the three cases, in the slide's text"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 33,
+   "element": "image40.emf",
+   "figures": [
+    "phone_bus_geometry"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 34,
+   "element": "image41.png",
+   "figures": [
+    "beacon_absence"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 36,
+   "element": "image42.png",
+   "figures": [
+    "mechanism"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 37,
+   "element": "image40.png",
+   "equations": [
+    "imputation_bias"
+   ],
+   "note": "formula image inside a text shape"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 39,
+   "element": "shapes",
+   "equations": [
+    "mask_and_ema"
+   ],
+   "note": "the recursion, and a worked row of signals, mask and fills typed in text boxes; the planted two-phone gap in the notebook is that row, computed"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 40,
+   "element": "image43.png",
+   "figures": [
+    "imputation_by_distance"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 41,
+   "element": "image410.png",
+   "equations": [
+    "spread_kept"
+   ],
+   "note": "formula image inside a text shape"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 41,
+   "element": "image43.png",
+   "figures": [
+    "imputation_by_distance"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 42,
+   "element": "image44.png",
+   "figures": [
+    "imputation_spread"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 47,
+   "element": "image45.png",
+   "figures": [
+    "one_hot"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 49,
+   "element": "image46.png",
+   "figures": [
+    "scaling"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 51,
+   "element": "image47.gif",
+   "figures": [
+    "same_summary_windows"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 53,
+   "element": "image430.png",
+   "equations": [
+    "fitted_transform"
+   ],
+   "note": "formula image inside a text shape"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 54,
+   "element": "shapes",
+   "equations": [
+    "leak_rule"
+   ],
+   "note": "the rule, typed in a text box"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 56,
+   "element": "image48.png",
+   "figures": [
+    "leak"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 57,
+   "element": "shapes",
+   "equations": [
+    "verdict"
+   ],
+   "note": "the verdict, typed in a text box"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 62,
+   "element": "image51.gif",
+   "figures": [
+    "stationarity_synthetic",
+    "stationarity_on_slice"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 63,
+   "element": "image51.gif",
+   "figures": [
+    "stationarity_synthetic",
+    "stationarity_on_slice"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 64,
+   "element": "image51.gif",
+   "figures": [
+    "stationarity_synthetic",
+    "stationarity_on_slice"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 67,
+   "element": "image461.png",
+   "equations": [
+    "window_features"
+   ],
+   "note": "the slide's bullet text rendered as an image inside a text shape"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 67,
+   "element": "image470.png",
+   "equations": [
+    "window_features"
+   ],
+   "note": "formula image inside a text shape"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 67,
+   "element": "image52.png",
+   "figures": [
+    "window_anatomy"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 68,
+   "element": "image53.png",
+   "figures": [
+    "peaks_amplitude"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 69,
+   "element": "image54.png",
+   "figures": [
+    "combined_feature"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 70,
+   "element": "image55.png",
+   "figures": [
+    "date_parts"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 71,
+   "element": "image56.png",
+   "figures": [
+    "gps_channels"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 72,
+   "element": "image57.png",
+   "figures": [
+    "correlation_matrices"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 73,
+   "element": "image58.png",
+   "figures": [
+    "pca"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 76,
+   "element": "image570.png",
+   "equations": [
+    "dft_pair",
+    "dft_limits"
+   ],
+   "note": "formula image inside a text shape"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 77,
+   "element": "image59.png",
+   "figures": [
+    "convolution"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 78,
+   "element": "image460.png",
+   "equations": [
+    "dft_pair"
+   ],
+   "note": "the slide's text about the transform and its inverse, rendered as an image inside a text shape"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 78,
+   "element": "image60.png",
+   "figures": [
+    "square_wave"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 78,
+   "element": "image61.png",
+   "equations": [
+    "dft_pair"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 78,
+   "element": "image62.png",
+   "equations": [
+    "dft_pair"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 79,
+   "element": "image63.gif",
+   "figures": [
+    "route_epicycles"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 80,
+   "element": "image510.png",
+   "equations": [
+    "dft_limits"
+   ],
+   "note": "the slide's text with the Nyquist criterion, rendered as an image inside a text shape"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 80,
+   "element": "image64.png",
+   "figures": [
+    "speed_spectrogram"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 81,
+   "element": "image65.png",
+   "figures": [
+    "split_timeline"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 81,
+   "element": "image650.png",
+   "equations": [
+    "split_by_time"
+   ],
+   "note": "formula image inside a text shape"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 82,
+   "element": "image69.png",
+   "equations": [
+    "nearest_match"
+   ],
+   "note": "formula image inside a text shape"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 83,
+   "element": "image66.png",
+   "figures": [
+    "join_cost",
+    "join_accuracy"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 84,
+   "element": "image67.png",
+   "figures": [
+    "selection_vs_reduction"
+   ]
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 85,
+   "element": "shapes",
+   "equations": [
+    "handoff"
+   ],
+   "note": "the definition's clauses, typed in a text box"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 86,
+   "element": "shapes",
+   "treatment": "excluded",
+   "reason": "pipeline-layer diagram drawn with shapes (raw data, distribution identification, duplicates, outliers, missing data, extraction, selection, reduction, target); its point — fit the steps as one stored object — is the hand-off's manifest (figure split_timeline, equation handoff)"
+  },
+  {
+   "deck": "Module2.pptx",
+   "slide": 95,
+   "element": "shapes",
+   "equations": [
+    "displacement_budget"
+   ],
+   "note": "the appendix's budget, in the slide's text"
+  }
+ ]
+}
